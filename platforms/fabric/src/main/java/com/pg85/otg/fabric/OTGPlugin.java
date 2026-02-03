@@ -20,7 +20,14 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 
 @SuppressWarnings("unused")
 public class OTGPlugin implements ModInitializer {
-	private FabricDimensionManager dimensionManager;
+	private static FabricDimensionManager dimensionManager;
+
+	/**
+	 * Returns the dimension manager singleton, or null if server not yet started.
+	 */
+	public static FabricDimensionManager getDimensionManager() {
+		return dimensionManager;
+	}
 
 	@Override
 	public void onInitialize() {

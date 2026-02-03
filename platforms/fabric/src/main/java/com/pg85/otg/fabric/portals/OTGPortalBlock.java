@@ -1,17 +1,13 @@
 package com.pg85.otg.fabric.portals;
 
-import com.pg85.otg.OTG;
-import com.pg85.otg.config.settings.preset.PortalColors;
-import com.pg85.otg.config.settings.preset.PortalSettings;
-import com.pg85.otg.constants.Constants;
-import com.pg85.otg.fabric.dimensions.FabricDimensionHelper;
+import com.pg85.otg.fabric.OTGPlugin;
+import com.pg85.otg.fabric.dimensions.DimensionKeys;
+import com.pg85.otg.fabric.dimensions.FabricDimensionManager;
 import com.pg85.otg.fabric.gen.OTGFabricChunkGenerator;
-import com.pg85.otg.fabric.materials.FabricMaterialData;
 import com.pg85.otg.fabric.portals.components.OTGComponents;
 import com.pg85.otg.presets.Preset;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
@@ -25,9 +21,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 public class OTGPortalBlock extends NetherPortalBlock {
 
@@ -78,13 +73,9 @@ public class OTGPortalBlock extends NetherPortalBlock {
         MinecraftServer server = serverLevel.getServer();
         ServerLevel destination = findDestination(entity, serverLevel);
 
-        System.out.println("[OTG Portal] doTeleport: destination=" + (destination != null ? destination.dimension().location() : "null"));
-
         if (destination != null && !entity.isPassenger()) {
             entity.setPortalCooldown();
             OTGTeleporter.teleport(entity, destination, this.portalColor);
-        } else {
-            System.out.println("[OTG Portal] Cannot teleport: destination is null or entity is passenger");
         }
     }
 
@@ -108,8 +99,6 @@ public class OTGPortalBlock extends NetherPortalBlock {
     }
 
     private ServerLevel findOTGDimensionByColor(MinecraftServer server, String targetColor) {
-        System.out.println("[OTG Portal] Looking for dimension with color: " + targetColor);
-
         // First check already loaded dimensions - direct color match, no collision handling
         for (ServerLevel level : server.getAllLevels()) {
             if (level.dimension() == Level.OVERWORLD ||
@@ -120,80 +109,64 @@ public class OTGPortalBlock extends NetherPortalBlock {
 
             if (level.getChunkSource().getGenerator() instanceof OTGFabricChunkGenerator) {
                 String dimColor = getWorldPortalColor(level);
-                System.out.println("[OTG Portal] Checking loaded dimension: " + level.dimension().location() + " color=" + dimColor);
                 if (targetColor.equals(dimColor)) {
-                    System.out.println("[OTG Portal] Found loaded dimension: " + level.dimension().location());
                     return level;
                 }
             }
         }
 
         // Not found in loaded dimensions - look through presets and load dynamically
-        System.out.println("[OTG Portal] Dimension not loaded, checking presets...");
         return findAndLoadDimensionByColor(server, targetColor);
     }
 
     private ServerLevel findAndLoadDimensionByColor(MinecraftServer server, String targetColor) {
-        List<Preset> presets = new ArrayList<>(OTG.getEngine().getPresetLoader().getAllPresets());
-
-        // First, find preset with EXACTLY matching configured color
-        for (Preset preset : presets) {
-            if (preset.getPresetConfig() == null) continue;
-
-            PortalSettings portalSettings = preset.getPresetConfig().getPortalSettings();
-            if (portalSettings == null || portalSettings.getPortalBlocks() == null ||
-                portalSettings.getPortalBlocks().isEmpty()) {
-                continue;
-            }
-
-            String configuredColor = portalSettings.getPortalColor().toLowerCase().trim();
-
-            if (targetColor.equals(configuredColor)) {
-                System.out.println("[OTG Portal] Found preset with matching color: " + preset.getFolderName() + " color=" + configuredColor);
-                return loadOrCreateDimension(server, preset);
-            }
+        Optional<Preset> presetOpt = PortalConfigResolver.findPresetByColor(targetColor);
+        if (presetOpt.isEmpty()) {
+            return null;
         }
 
-        System.out.println("[OTG Portal] No preset found with color: " + targetColor);
-        return null;
+        Preset preset = presetOpt.get();
+        return loadOrCreateDimension(server, preset);
     }
 
     private ServerLevel loadOrCreateDimension(MinecraftServer server, Preset preset) {
-        String dimName = preset.getFolderName().toLowerCase().replace(" ", "_");
-        ResourceKey<Level> levelKey = ResourceKey.create(
-                net.minecraft.core.registries.Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, dimName)
-        );
+        String dimName = DimensionKeys.normalizeName(preset.getFolderName());
+        ResourceKey<Level> levelKey = DimensionKeys.otg(dimName);
 
-        // Check if dimension already exists
+        // Check if dimension already loaded in runtime
         ServerLevel existing = server.getLevel(levelKey);
         if (existing != null) {
-            System.out.println("[OTG Portal] Dimension already loaded: " + levelKey.location());
             return existing;
         }
 
-        // Create dimension at runtime
-        try {
-            System.out.println("[OTG Portal] Creating dimension at runtime: " + dimName);
-            FabricDimensionHelper helper = new FabricDimensionHelper();
-            helper.createDimensionRuntime(server, dimName, preset.getFolderName(), server.overworld().getSeed());
-
-            ServerLevel newLevel = server.getLevel(levelKey);
-            if (newLevel != null) {
-                System.out.println("[OTG Portal] Successfully created dimension: " + levelKey.location());
-                return newLevel;
-            }
-        } catch (Exception e) {
-            System.err.println("[OTG Portal] Failed to create dimension: " + e.getMessage());
-            e.printStackTrace();
+        // Use FabricDimensionManager for proper persistence (storage + datapack)
+        FabricDimensionManager manager = OTGPlugin.getDimensionManager();
+        if (manager == null) {
+            return null;
         }
 
-        return null;
+        // Check if dimension exists in storage but not loaded (e.g., created by command, needs restart normally)
+        if (manager.getDimensionInfo(dimName).isPresent()) {
+            // Dimension exists in storage - load it at runtime via manager
+            if (manager.loadDimensionRuntime(dimName)) {
+                return server.getLevel(levelKey);
+            }
+            return null;
+        }
+
+        // Dimension doesn't exist - create it via manager (with storage + datapack)
+        var result = manager.createDimension(preset.getFolderName());
+
+        if (result.success()) {
+            return server.getLevel(levelKey);
+        } else {
+            return null;
+        }
     }
 
     private String getWorldPortalColor(ServerLevel level) {
         if (level.getChunkSource().getGenerator() instanceof OTGFabricChunkGenerator gen) {
-            return gen.getPortalColor().toLowerCase().trim();
+            return PortalConfigResolver.normalizeColor(gen.getPortalColor());
         }
         return "default";
     }
@@ -205,19 +178,13 @@ public class OTGPortalBlock extends NetherPortalBlock {
 
     public static boolean tryCreatePortal(LevelAccessor level, BlockPos pos, List<LocalMaterialData> frameBlocks, String portalColor,
                                           int minWidth, int maxWidth, int minHeight, int maxHeight) {
-        System.out.println("[OTG Portal] Checking X axis at " + pos);
         PortalSize sizeX = new PortalSize(level, pos, Direction.Axis.X, frameBlocks, minWidth, maxWidth, minHeight, maxHeight);
-        System.out.println("[OTG Portal] X axis: width=" + sizeX.width + " height=" + sizeX.height +
-                " bottomLeft=" + sizeX.bottomLeft + " valid=" + sizeX.isValid() + " portalBlocks=" + sizeX.portalBlockCount);
         if (sizeX.isValid() && sizeX.portalBlockCount == 0) {
             sizeX.placePortalBlocks(portalColor);
             return true;
         }
 
-        System.out.println("[OTG Portal] Checking Z axis at " + pos);
         PortalSize sizeZ = new PortalSize(level, pos, Direction.Axis.Z, frameBlocks, minWidth, maxWidth, minHeight, maxHeight);
-        System.out.println("[OTG Portal] Z axis: width=" + sizeZ.width + " height=" + sizeZ.height +
-                " bottomLeft=" + sizeZ.bottomLeft + " valid=" + sizeZ.isValid() + " portalBlocks=" + sizeZ.portalBlockCount);
         if (sizeZ.isValid() && sizeZ.portalBlockCount == 0) {
             sizeZ.placePortalBlocks(portalColor);
             return true;
@@ -264,19 +231,15 @@ public class OTGPortalBlock extends NetherPortalBlock {
             while (bottomPos.getY() > level.getMinBuildHeight() && isEmpty(level.getBlockState(bottomPos.below()))) {
                 bottomPos = bottomPos.below();
             }
-            System.out.println("[OTG Portal] Bottom pos: " + bottomPos + " block below: " + level.getBlockState(bottomPos.below()));
 
             int distLeft = getDistanceToEdge(bottomPos, leftDir);
-            System.out.println("[OTG Portal] Distance to left edge (" + leftDir + "): " + distLeft);
             if (distLeft > 0) {
                 // bottomLeft should be the leftmost INTERIOR position (not on the wall)
                 // distLeft is how far to the wall, so interior is at distLeft-1
                 this.bottomLeft = bottomPos.relative(leftDir, distLeft - 1);
                 // Width = distance from bottomLeft to right wall
                 this.width = getDistanceToEdge(bottomLeft, rightDir);
-                System.out.println("[OTG Portal] bottomLeft: " + bottomLeft + " Width: " + width + " (min=" + minWidth + " max=" + maxWidth + ")");
                 if (width < minWidth || width > maxWidth) {
-                    System.out.println("[OTG Portal] Width out of range!");
                     this.bottomLeft = null;
                     this.width = 0;
                 }
@@ -284,7 +247,6 @@ public class OTGPortalBlock extends NetherPortalBlock {
                 // Already at the left wall or no wall found
                 this.bottomLeft = bottomPos;
                 this.width = getDistanceToEdge(bottomLeft, rightDir);
-                System.out.println("[OTG Portal] At left edge, Width: " + width);
                 if (width < minWidth || width > maxWidth) {
                     this.bottomLeft = null;
                     this.width = 0;
@@ -293,7 +255,6 @@ public class OTGPortalBlock extends NetherPortalBlock {
 
             if (this.bottomLeft != null) {
                 this.height = calculateHeight();
-                System.out.println("[OTG Portal] Height: " + height + " (min=" + minHeight + " max=" + maxHeight + ")");
             }
         }
 
@@ -350,12 +311,7 @@ public class OTGPortalBlock extends NetherPortalBlock {
         }
 
         private boolean isFrameBlock(BlockState state) {
-            for (LocalMaterialData frameMaterial : frameBlocks) {
-                if (((FabricMaterialData) frameMaterial).getState().getBlock() == state.getBlock()) {
-                    return true;
-                }
-            }
-            return false;
+            return PortalConfigResolver.isFrameBlock(state, frameBlocks);
         }
 
         public boolean isValid() {

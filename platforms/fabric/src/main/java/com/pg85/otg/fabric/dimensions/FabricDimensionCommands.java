@@ -10,10 +10,8 @@ import com.pg85.otg.presets.Preset;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -235,8 +233,7 @@ public class FabricDimensionCommands {
         var infoOpt = manager.getDimensionInfo(dimensionName);
         if (infoOpt.isEmpty()) {
             // Try to find it as a generic dimension key (for dimensions not in storage)
-            ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                    new ResourceLocation("otg", dimensionName));
+            ResourceKey<Level> dimKey = DimensionKeys.otg(dimensionName);
             ServerLevel targetLevel = player.getServer().getLevel(dimKey);
             if (targetLevel != null) {
                 var spawn = manager.getHelper().findSafeSpawn(targetLevel);

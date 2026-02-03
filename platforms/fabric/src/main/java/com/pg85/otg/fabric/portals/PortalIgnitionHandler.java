@@ -4,7 +4,6 @@ import com.pg85.otg.OTG;
 import com.pg85.otg.config.settings.preset.PortalColors;
 import com.pg85.otg.config.settings.preset.PortalSettings;
 import com.pg85.otg.fabric.gen.OTGFabricChunkGenerator;
-import com.pg85.otg.fabric.materials.FabricMaterialData;
 import com.pg85.otg.presets.Preset;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -19,7 +18,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.BlockHitResult;
 
 import java.util.ArrayList;
@@ -49,41 +47,29 @@ public class PortalIgnitionHandler {
         // Check each OTG dimension's portal config
         List<PortalConfig> configs = getPortalConfigs(serverLevel);
 
-        // DEBUG
-        System.out.println("[OTG Portal] Found " + configs.size() + " OTG preset configs");
-
-        System.out.println("[OTG Portal] Player using: " + BuiltInRegistries.ITEM.getKey(stack.getItem()));
-
         for (PortalConfig config : configs) {
             // Check if item matches ignition source
             if (!isIgnitionSource(stack, config.ignitionSource)) {
-                System.out.println("[OTG Portal] " + config.presetName() + ": Item mismatch, expected " + config.ignitionSource());
                 continue;
             }
-
-            System.out.println("[OTG Portal] " + config.presetName() + ": Item matches! Checking frame...");
 
             // Check if clicked on or next to frame block
             boolean adjacentToFrame = false;
             for (Direction dir : Direction.values()) {
-                if (isFrameBlock(serverLevel.getBlockState(portalPos.relative(dir)).getBlock(), config.frameBlocks)) {
+                if (PortalConfigResolver.isFrameBlock(serverLevel.getBlockState(portalPos.relative(dir)), config.frameBlocks())) {
                     adjacentToFrame = true;
-                    System.out.println("[OTG Portal] Found frame block in direction " + dir);
                     break;
                 }
             }
 
             if (!adjacentToFrame) {
-                System.out.println("[OTG Portal] No adjacent frame block found at " + portalPos);
                 continue;
             }
 
             // Try to create portal
-            System.out.println("[OTG Portal] Attempting to create portal at " + portalPos);
             if (OTGPortalBlock.tryCreatePortal(serverLevel, portalPos, config.frameBlocks, config.portalColor,
                     config.minWidth, config.maxWidth, config.minHeight, config.maxHeight)) {
                 // Success
-                System.out.println("[OTG Portal] SUCCESS! Portal created");
                 player.playSound(SoundEvents.FLINTANDSTEEL_USE, 1.0F, 1.0F);
                 player.swing(hand);
 
@@ -96,12 +82,9 @@ public class PortalIgnitionHandler {
                 }
 
                 return InteractionResult.SUCCESS;
-            } else {
-                System.out.println("[OTG Portal] FAILED - frame validation failed");
             }
         }
 
-        System.out.println("[OTG Portal] No matching config or invalid frame");
         return InteractionResult.PASS;
     }
 
@@ -126,7 +109,7 @@ public class PortalIgnitionHandler {
                 continue;
             }
 
-            String color = portalSettings.getPortalColor().toLowerCase().trim();
+            String color = PortalConfigResolver.normalizeColor(portalSettings.getPortalColor());
             while (usedColors.contains(color)) {
                 color = PortalColors.getNextColor(color);
             }
@@ -142,9 +125,6 @@ public class PortalIgnitionHandler {
                     portalSettings.getPortalMinHeight(),
                     portalSettings.getPortalMaxHeight()
             ));
-            System.out.println("[OTG Portal] Loaded config for preset: " + preset.getFolderName() +
-                    " color=" + color + " ignition=" + portalSettings.getPortalIgnitionSource() +
-                    " frameBlocks=" + portalSettings.getPortalBlocks().size());
         }
 
         return configs;
@@ -154,15 +134,6 @@ public class PortalIgnitionHandler {
         if (ignitionSource == null || ignitionSource.isEmpty()) return false;
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return itemId.toString().equals(ignitionSource);
-    }
-
-    private static boolean isFrameBlock(Block block, List<LocalMaterialData> frameBlocks) {
-        for (LocalMaterialData material : frameBlocks) {
-            if (((FabricMaterialData) material).getState().getBlock() == block) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private record PortalConfig(

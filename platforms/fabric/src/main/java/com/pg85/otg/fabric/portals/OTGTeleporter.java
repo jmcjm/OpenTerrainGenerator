@@ -1,11 +1,6 @@
 package com.pg85.otg.fabric.portals;
 
-import com.pg85.otg.OTG;
-import com.pg85.otg.config.settings.preset.PortalSettings;
-import com.pg85.otg.fabric.gen.OTGFabricChunkGenerator;
-import com.pg85.otg.fabric.materials.FabricMaterialData;
-import com.pg85.otg.presets.Preset;
-import com.pg85.otg.util.materials.LocalMaterialData;
+import com.pg85.otg.fabric.dimensions.FabricDimensionHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -18,7 +13,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -54,17 +48,13 @@ public class OTGTeleporter {
                 (int)border.getMinZ() + 16, (int)border.getMaxZ() - 16);
         BlockPos searchPos = new BlockPos(destX, sourcePos.getY(), destZ);
 
-        System.out.println("[OTG Portal] Search position: " + searchPos + " (scale=" + scale + ")");
-
         // Try to find existing portal
         Optional<BlockPos> existingPortal = findExistingPortal(destination, searchPos, portalColor);
         if (existingPortal.isPresent()) {
-            System.out.println("[OTG Portal] Found existing portal at: " + existingPortal.get());
             return existingPortal.get();
         }
 
         // Create new portal
-        System.out.println("[OTG Portal] Creating new portal near: " + searchPos);
         return createPortal(destination, searchPos, portalColor);
     }
 
@@ -97,7 +87,6 @@ public class OTGTeleporter {
                             while (level.getBlockState(mutable.below()).getBlock() == targetBlock) {
                                 mutable.move(Direction.DOWN);
                             }
-                            System.out.println("[OTG Portal] Found portal at " + mutable);
                             return Optional.of(mutable.immutable());
                         }
                     }
@@ -112,20 +101,16 @@ public class OTGTeleporter {
         OTGPortalBlock portalBlock = FabricPortalBlocks.getPortalBlock(portalColor);
         if (portalBlock == null) return null;
 
-        // Get frame block - try destination dimension config first, then fall back to preset by color
-        BlockState frameBlock = getFrameBlock(level, portalColor);
-
-        // Find suitable location
+        // Use centralized resolver instead of local methods
+        BlockState frameBlock = PortalConfigResolver.getFrameBlock(level, portalColor);
         BlockPos portalPos = findSuitableLocation(level, pos);
 
         Direction.Axis axis = Direction.Axis.X;
         Direction facing = Direction.get(Direction.AxisDirection.POSITIVE, axis);
 
-        // Get portal size from config (use min values for auto-created portals)
-        int width = getPortalWidth(level, portalColor);
-        int height = getPortalHeight(level, portalColor);
-
-        System.out.println("[OTG Portal] Creating portal at " + portalPos + " with frame=" + frameBlock.getBlock() + " size=" + width + "x" + height);
+        // Use centralized resolver for dimensions
+        int width = PortalConfigResolver.getPortalMinWidth(level, portalColor);
+        int height = PortalConfigResolver.getPortalMinHeight(level, portalColor);
 
         // Bottom frame
         for (int i = -1; i <= width; i++) {
@@ -155,20 +140,20 @@ public class OTGTeleporter {
     }
 
     private static BlockPos findSuitableLocation(ServerLevel level, BlockPos searchPos) {
-        // Try to find solid ground
-        int y = Math.min(level.getMaxBuildHeight() - 10, searchPos.getY());
-        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos(searchPos.getX(), y, searchPos.getZ());
-
-        // Search down for solid ground
-        while (mutable.getY() > level.getMinBuildHeight() + 5) {
-            if (level.getBlockState(mutable).isSolidRender(level, mutable)) {
-                return mutable.above().immutable();
-            }
-            mutable.move(Direction.DOWN);
+        // Use the same safe spawn logic as dimension commands - spiral search for solid ground
+        BlockPos safe = FabricDimensionHelper.findSafeSpawnNear(level, searchPos, 128);
+        if (safe != null) {
+            return safe;
         }
 
-        // Fallback: create platform at y=70
-        mutable.setY(70);
+        // If spiral search failed, try world spawn as fallback
+        safe = FabricDimensionHelper.findSafeSpawn(level);
+        if (safe != null && safe.getY() < 256) { // Sanity check - not the ultimate fallback
+            return safe;
+        }
+
+        // Last resort: create platform at searchPos
+        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos(searchPos.getX(), 70, searchPos.getZ());
         for (int x = -1; x <= 4; x++) {
             for (int z = -1; z <= 1; z++) {
                 level.setBlockAndUpdate(mutable.offset(x, -1, z), Blocks.STONE.defaultBlockState());
@@ -176,66 +161,6 @@ public class OTGTeleporter {
         }
 
         return mutable.immutable();
-    }
-
-    private static BlockState getFrameBlock(ServerLevel level, String portalColor) {
-        // First try destination dimension's config
-        if (level.getChunkSource().getGenerator() instanceof OTGFabricChunkGenerator gen) {
-            List<LocalMaterialData> portalBlocks = gen.getPortalBlocks();
-            if (!portalBlocks.isEmpty()) {
-                return ((FabricMaterialData) portalBlocks.get(0)).getState();
-            }
-        }
-
-        // Fall back to preset config by portal color
-        PortalSettings settings = findPresetByColor(portalColor);
-        if (settings != null && settings.getPortalBlocks() != null && !settings.getPortalBlocks().isEmpty()) {
-            LocalMaterialData material = settings.getPortalBlocks().get(0);
-            if (material instanceof FabricMaterialData fabricMaterial) {
-                return fabricMaterial.getState();
-            }
-        }
-
-        return Blocks.QUARTZ_BLOCK.defaultBlockState();
-    }
-
-    private static int getPortalWidth(ServerLevel level, String portalColor) {
-        if (level.getChunkSource().getGenerator() instanceof OTGFabricChunkGenerator gen) {
-            return Math.max(2, gen.getPortalMinWidth());
-        }
-
-        PortalSettings settings = findPresetByColor(portalColor);
-        if (settings != null) {
-            return Math.max(2, settings.getPortalMinWidth());
-        }
-        return 2;
-    }
-
-    private static int getPortalHeight(ServerLevel level, String portalColor) {
-        if (level.getChunkSource().getGenerator() instanceof OTGFabricChunkGenerator gen) {
-            return Math.max(3, gen.getPortalMinHeight());
-        }
-
-        PortalSettings settings = findPresetByColor(portalColor);
-        if (settings != null) {
-            return Math.max(3, settings.getPortalMinHeight());
-        }
-        return 3;
-    }
-
-    private static PortalSettings findPresetByColor(String portalColor) {
-        String targetColor = portalColor.toLowerCase().trim();
-        for (Preset preset : OTG.getEngine().getPresetLoader().getAllPresets()) {
-            if (preset.getPresetConfig() == null) continue;
-            PortalSettings settings = preset.getPresetConfig().getPortalSettings();
-            if (settings == null) continue;
-
-            String configColor = settings.getPortalColor().toLowerCase().trim();
-            if (targetColor.equals(configColor)) {
-                return settings;
-            }
-        }
-        return null;
     }
 
     private static Vec3 findTeleportPosition(ServerLevel level, BlockPos portalPos) {

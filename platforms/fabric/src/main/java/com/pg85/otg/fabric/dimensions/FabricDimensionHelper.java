@@ -65,8 +65,7 @@ public class FabricDimensionHelper {
     }
 
     public void teleportToDimension(ServerPlayer player, String dimensionName) {
-        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, dimensionName));
+        ResourceKey<Level> dimKey = DimensionKeys.otg(dimensionName);
         ServerLevel level = player.server.getLevel(dimKey);
         if (level != null) {
             BlockPos safeSpawn = findSafeSpawn(level);
@@ -78,9 +77,9 @@ public class FabricDimensionHelper {
 
     /**
      * Finds a safe spawn location in the given level.
-     * Searches in a spiral pattern from 0,0 for solid ground with air above.
+     * Searches in a spiral pattern from world spawn for solid ground with air above.
      */
-    public BlockPos findSafeSpawn(ServerLevel level) {
+    public static BlockPos findSafeSpawn(ServerLevel level) {
         // First try the world spawn
         BlockPos worldSpawn = level.getSharedSpawnPos();
         BlockPos safe = findSafeY(level, worldSpawn.getX(), worldSpawn.getZ());
@@ -116,10 +115,52 @@ public class FabricDimensionHelper {
     }
 
     /**
+     * Finds a safe spawn location near the given position.
+     * Searches in a spiral pattern for solid ground with air above.
+     * Used by portals to find suitable location for portal placement.
+     *
+     * @param level The server level to search in
+     * @param searchCenter The center position to search around
+     * @param maxRadius Maximum search radius (default 128 for portals)
+     * @return A safe BlockPos or null if none found within radius
+     */
+    public static BlockPos findSafeSpawnNear(ServerLevel level, BlockPos searchCenter, int maxRadius) {
+        // First try the exact position
+        BlockPos safe = findSafeY(level, searchCenter.getX(), searchCenter.getZ());
+        if (safe != null) {
+            return safe;
+        }
+
+        // Search in spiral pattern from search center
+        int step = 8; // Check more frequently than world spawn search
+
+        for (int radius = step; radius <= maxRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    // Only check points on the edge of the square
+                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+
+                    safe = findSafeY(level, searchCenter.getX() + dx, searchCenter.getZ() + dz);
+                    if (safe != null) {
+                        OTGLog.info("Found safe location at %d, %d, %d (near %d, %d)",
+                                safe.getX(), safe.getY(), safe.getZ(),
+                                searchCenter.getX(), searchCenter.getZ());
+                        return safe;
+                    }
+                }
+            }
+        }
+
+        return null; // Caller should handle fallback (e.g., create platform)
+    }
+
+    /**
      * Finds a safe Y level at the given X,Z coordinates.
      * Returns null if no safe spot found.
      */
-    private BlockPos findSafeY(ServerLevel level, int x, int z) {
+    public static BlockPos findSafeY(ServerLevel level, int x, int z) {
         // Make sure chunk is loaded/generated
         ChunkAccess chunk = level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, true);
         if (chunk == null) {
@@ -148,19 +189,18 @@ public class FabricDimensionHelper {
         return null;
     }
 
-    private boolean isSolidGround(BlockState state) {
+    private static boolean isSolidGround(BlockState state) {
         // Check if block is solid and not liquid
         return state.isSolid() && !state.liquid();
     }
 
-    private boolean isPassable(BlockState state) {
+    private static boolean isPassable(BlockState state) {
         // Air or non-solid blocks player can stand in
         return state.isAir() || (!state.isSolid() && !state.liquid());
     }
 
     public List<ServerPlayer> getPlayersInDimension(MinecraftServer server, String dimensionName) {
-        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, dimensionName));
+        ResourceKey<Level> dimKey = DimensionKeys.otg(dimensionName);
         ServerLevel level = server.getLevel(dimKey);
         if (level == null) {
             return List.of();
@@ -169,8 +209,7 @@ public class FabricDimensionHelper {
     }
 
     public boolean isDimensionLoaded(MinecraftServer server, String dimensionName) {
-        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, dimensionName));
+        ResourceKey<Level> dimKey = DimensionKeys.otg(dimensionName);
         return server.getLevel(dimKey) != null;
     }
 
@@ -184,8 +223,8 @@ public class FabricDimensionHelper {
         MinecraftServerAccessor serverAccessor = (MinecraftServerAccessor) server;
 
         // Create ResourceKeys
-        ResourceLocation dimLocation = new ResourceLocation(Constants.MOD_ID_SHORT, name);
-        ResourceKey<Level> levelKey = ResourceKey.create(Registries.DIMENSION, dimLocation);
+        ResourceKey<Level> levelKey = DimensionKeys.otg(name);
+        ResourceLocation dimLocation = levelKey.location();
         ResourceKey<DimensionType> dimTypeKey = ResourceKey.create(Registries.DIMENSION_TYPE, dimLocation);
 
         // Check if already loaded
@@ -309,8 +348,7 @@ public class FabricDimensionHelper {
     }
 
     public void deleteDimensionRuntime(MinecraftServer server, String name) throws Exception {
-        ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, name));
+        ResourceKey<Level> dimKey = DimensionKeys.otg(name);
 
         ServerLevel level = server.getLevel(dimKey);
         if (level == null) {
