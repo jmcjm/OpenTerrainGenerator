@@ -1,13 +1,14 @@
 package com.pg85.otg.fabric.dimensions;
 
 import com.pg85.otg.constants.Constants;
+import com.pg85.otg.util.DimensionNameUtils;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 /**
- * Utility for creating OTG dimension ResourceKeys consistently.
+ * Fabric-specific utility for creating OTG dimension ResourceKeys.
  */
 public final class DimensionKeys {
 
@@ -15,18 +16,20 @@ public final class DimensionKeys {
 
     /**
      * Create a ResourceKey for an OTG dimension.
-     * @param name The dimension name (will be normalized: lowercase, spaces to underscores)
+     * @param name The dimension name (will be normalized)
      * @return ResourceKey for the dimension
      */
     public static ResourceKey<Level> otg(String name) {
         return ResourceKey.create(Registries.DIMENSION,
-                new ResourceLocation(Constants.MOD_ID_SHORT, normalizeName(name)));
+                new ResourceLocation(Constants.MOD_ID_SHORT, DimensionNameUtils.normalizeName(name)));
     }
 
     /**
-     * Normalize dimension name: lowercase, spaces to underscores.
+     * Normalize dimension name - delegates to shared utility.
+     * @deprecated Use {@link DimensionNameUtils#normalizeName(String)} directly
      */
+    @Deprecated
     public static String normalizeName(String name) {
-        return name.toLowerCase().replace(" ", "_");
+        return DimensionNameUtils.normalizeName(name);
     }
 }
