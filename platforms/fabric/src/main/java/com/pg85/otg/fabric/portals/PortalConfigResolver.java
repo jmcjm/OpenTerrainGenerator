@@ -1,10 +1,11 @@
 package com.pg85.otg.fabric.portals;
 
-import com.pg85.otg.OTG;
 import com.pg85.otg.config.settings.preset.PortalSettings;
 import com.pg85.otg.fabric.gen.OTGFabricChunkGenerator;
 import com.pg85.otg.fabric.materials.FabricMaterialData;
 import com.pg85.otg.presets.Preset;
+import com.pg85.otg.shared.portals.PortalConfigLookup;
+import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -15,8 +16,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Centralized utility for portal configuration lookup.
- * Resolves portal settings from either the dimension's chunk generator or preset by color.
+ * Fabric-specific portal configuration resolver.
+ * Delegates platform-agnostic logic to PortalConfigLookup,
+ * handles Fabric-specific material conversion.
  */
 public final class PortalConfigResolver {
 
@@ -24,38 +26,23 @@ public final class PortalConfigResolver {
 
     /**
      * Find a preset by its configured portal color.
-     * @param portalColor The color to search for (case-insensitive)
-     * @return Optional containing the matching preset, or empty if not found
+     * Delegates to shared PortalConfigLookup.
      */
     public static Optional<Preset> findPresetByColor(String portalColor) {
-        String targetColor = normalizeColor(portalColor);
-        return OTG.getEngine().getPresetLoader().getAllPresets().stream()
-                .filter(p -> p.getPresetConfig() != null)
-                .filter(p -> p.getPresetConfig().getPortalSettings() != null)
-                .filter(p -> {
-                    PortalSettings settings = p.getPresetConfig().getPortalSettings();
-                    return settings.getPortalBlocks() != null && !settings.getPortalBlocks().isEmpty();
-                })
-                .filter(p -> targetColor.equals(normalizeColor(
-                        p.getPresetConfig().getPortalSettings().getPortalColor())))
-                .findFirst();
+        return PortalConfigLookup.findPresetByColor(portalColor);
     }
 
     /**
-     * Get PortalSettings for a color, searching all presets.
-     * @param portalColor The color to search for
-     * @return Optional containing the matching settings, or empty if not found
+     * Get PortalSettings for a color.
+     * Delegates to shared PortalConfigLookup.
      */
     public static Optional<PortalSettings> findSettingsByColor(String portalColor) {
-        return findPresetByColor(portalColor)
-                .map(p -> p.getPresetConfig().getPortalSettings());
+        return PortalConfigLookup.findSettingsByColor(portalColor);
     }
 
     /**
      * Check if a block is a valid frame block for the given frame materials.
-     * @param block The block to check
-     * @param frameBlocks List of valid frame materials
-     * @return true if the block matches any frame material
+     * Fabric-specific: converts LocalMaterialData to Fabric BlockState.
      */
     public static boolean isFrameBlock(Block block, List<LocalMaterialData> frameBlocks) {
         if (frameBlocks == null || frameBlocks.isEmpty()) {
@@ -71,7 +58,6 @@ public final class PortalConfigResolver {
 
     /**
      * Check if a BlockState is a valid frame block.
-     * Convenience overload for code that has BlockState instead of Block.
      */
     public static boolean isFrameBlock(BlockState state, List<LocalMaterialData> frameBlocks) {
         return isFrameBlock(state.getBlock(), frameBlocks);
@@ -79,9 +65,7 @@ public final class PortalConfigResolver {
 
     /**
      * Get frame block for a dimension. Tries generator first, falls back to preset by color.
-     * @param level The server level (may be OTG dimension)
-     * @param portalColor Fallback color to search presets
-     * @return The frame block state, defaults to QUARTZ_BLOCK
+     * Fabric-specific: returns Fabric BlockState.
      */
     public static BlockState getFrameBlock(ServerLevel level, String portalColor) {
         // First try dimension's chunk generator
@@ -107,7 +91,7 @@ public final class PortalConfigResolver {
             return Math.max(2, gen.getPortalMinWidth());
         }
         return findSettingsByColor(portalColor)
-                .map(s -> Math.max(2, s.getPortalMinWidth()))
+                .map(PortalConfigLookup::getPortalMinWidth)
                 .orElse(2);
     }
 
@@ -119,14 +103,15 @@ public final class PortalConfigResolver {
             return Math.max(3, gen.getPortalMinHeight());
         }
         return findSettingsByColor(portalColor)
-                .map(s -> Math.max(3, s.getPortalMinHeight()))
+                .map(PortalConfigLookup::getPortalMinHeight)
                 .orElse(3);
     }
 
     /**
      * Normalize portal color string for comparison.
+     * Delegates to shared utility.
      */
     public static String normalizeColor(String color) {
-        return color == null ? "default" : color.toLowerCase().trim();
+        return DimensionNameUtils.normalizeColor(color);
     }
 }
