@@ -1,0 +1,66 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ "1.20.1", "main", "master" ]
+  pull_request:
+    branches: [ "1.20.1", "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew build --no-daemon
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: otg-unofficial-${{ github.sha }}
+        path: build/distributions/*.jar
+        retention-days: 14
+
+    - name: Get short SHA
+      id: sha
+      run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+    - name: Delete old dev release
+      if: github.event_name == 'push'
+      run: gh release delete dev --yes || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create dev release
+      if: github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: dev
+        name: "Unofficial Development Build (${{ steps.sha.outputs.SHORT_SHA }})"
+        prerelease: true
+        body: |
+          **UNOFFICIAL** automatic development build from `${{ github.ref_name }}` branch.
+
+          Commit: ${{ github.sha }}
+          Message: ${{ github.event.head_commit.message }}
+        files: |
+          build/distributions/*.jar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

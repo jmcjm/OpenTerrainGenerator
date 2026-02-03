@@ -32,7 +32,7 @@ dependencies {
     mappings(loom.officialMojangMappings())
 
     otg(project(":common:common-core"))
-    implementation(project(":platforms:shared"))
+    otg(project(":platforms:shared"))
 
     compileOnly("org.projectlombok:lombok:1.18.32")
     annotationProcessor("org.projectlombok:lombok:1.18.32")
@@ -63,6 +63,14 @@ tasks {
     }
 
     shadowJar {
+        dependencyFilter.apply {
+            include(project(":common:common-annotation"))
+            include(project(":common:common-util"))
+            include(project(":common:common-customobject"))
+            include(project(":common:common-generator"))
+            include(project(":common:common-core"))
+            include(project(":platforms:shared"))
+        }
         exclude("architectury.common.json")
         configurations = listOf(otg)
         archiveClassifier.set("deobf-all")
