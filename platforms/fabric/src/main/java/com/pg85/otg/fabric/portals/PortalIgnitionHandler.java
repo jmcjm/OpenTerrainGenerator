@@ -5,6 +5,7 @@ import com.pg85.otg.config.settings.preset.PortalColors;
 import com.pg85.otg.config.settings.preset.PortalSettings;
 import com.pg85.otg.fabric.gen.OTGFabricChunkGenerator;
 import com.pg85.otg.presets.Preset;
+import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
@@ -109,7 +110,7 @@ public class PortalIgnitionHandler {
                 continue;
             }
 
-            String color = PortalConfigResolver.normalizeColor(portalSettings.getPortalColor());
+            String color = DimensionNameUtils.normalizeColor(portalSettings.getPortalColor());
             while (usedColors.contains(color)) {
                 color = PortalColors.getNextColor(color);
             }

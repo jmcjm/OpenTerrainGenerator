@@ -5,6 +5,7 @@ import com.pg85.otg.dimensions.DimensionDatapack;
 import com.pg85.otg.dimensions.DimensionInfo;
 import com.pg85.otg.dimensions.DimensionStorage;
 import com.pg85.otg.presets.Preset;
+import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.OTGLog;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,7 +53,7 @@ public class FabricDimensionManager {
             return CreateResult.error("Unknown preset '" + presetName + "'. Use /otg preset list");
         }
 
-        String normalizedName = DimensionKeys.normalizeName(presetName);
+        String normalizedName = DimensionNameUtils.normalizeName(presetName);
 
         // Check if dimension already exists
         if (storage.exists(normalizedName)) {
@@ -88,7 +89,7 @@ public class FabricDimensionManager {
     }
 
     public DeleteResult deleteDimension(String name, boolean purge, boolean confirmed) {
-        String normalizedName = DimensionKeys.normalizeName(name);
+        String normalizedName = DimensionNameUtils.normalizeName(name);
 
         // Validate dimension exists
         Optional<DimensionInfo> dimOpt = storage.getDimension(normalizedName);
@@ -139,11 +140,11 @@ public class FabricDimensionManager {
     }
 
     public Optional<DimensionInfo> getDimensionInfo(String name) {
-        return storage.getDimension(DimensionKeys.normalizeName(name));
+        return storage.getDimension(DimensionNameUtils.normalizeName(name));
     }
 
     public void teleportPlayer(ServerPlayer player, String dimensionName) {
-        helper.teleportToDimension(player, DimensionKeys.normalizeName(dimensionName));
+        helper.teleportToDimension(player, DimensionNameUtils.normalizeName(dimensionName));
     }
 
     /**
@@ -154,7 +155,7 @@ public class FabricDimensionManager {
      * @return true if dimension was loaded successfully, false if not found or failed
      */
     public boolean loadDimensionRuntime(String name) {
-        String normalizedName = DimensionKeys.normalizeName(name);
+        String normalizedName = DimensionNameUtils.normalizeName(name);
         var info = storage.getDimension(normalizedName);
         if (info.isEmpty()) {
             return false;
