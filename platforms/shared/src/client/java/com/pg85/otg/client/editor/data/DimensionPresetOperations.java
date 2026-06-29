@@ -34,6 +34,16 @@ public final class DimensionPresetOperations {
 
     private static final Logger LOG = LoggerFactory.getLogger(DimensionPresetOperations.class);
 
+    /**
+     * Legacy config keys that {@code DimensionPresetConfig.renameOldSettings()} maps onto a
+     * canonical setting at load time. When patching the canonical key we must rewrite any
+     * such alias line in place — otherwise the loader reads the stale alias value (which it
+     * renames onto the canonical setting) in preference to our value, silently overriding it.
+     * This is exactly how a DefaultPreset-templated preset kept {@code ShortPresetName: otg_default}
+     * and collided with DefaultPreset's registry name.
+     */
+    private static final Map<String, String> LEGACY_KEY_ALIASES = Map.of("ShortPresetName", "RegistryName");
+
     private DimensionPresetOperations() {}
 
     /**
@@ -268,9 +278,13 @@ public final class DimensionPresetOperations {
                         && !trimmed.contains("(") && trimmed.contains(":")) {
                     int colonIdx = trimmed.indexOf(':');
                     String key = trimmed.substring(0, colonIdx).trim();
-                    if (remaining.containsKey(key)) {
+                    // Resolve legacy aliases (e.g. ShortPresetName) to the canonical patch key,
+                    // so we overwrite the alias line in place rather than appending a duplicate
+                    // the loader would then override via renameOldSetting().
+                    String canonical = LEGACY_KEY_ALIASES.getOrDefault(key, key);
+                    if (remaining.containsKey(canonical)) {
                         String indent = line.substring(0, line.indexOf(trimmed));
-                        output.add(indent + key + ": " + remaining.remove(key));
+                        output.add(indent + canonical + ": " + remaining.remove(canonical));
                         continue;
                     }
                 }
