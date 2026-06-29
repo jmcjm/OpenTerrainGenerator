@@ -1,5 +1,23 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+### Release: 0.6.0-dev2
+
+---
+
+**2026-06-30**
+
+- **Edytor: nowy DimensionPreset z szablonu DefaultPreset nie jest już cicho gubiony.**
+  Szablon DefaultPreset niesie legacy klucz `ShortPresetName: otg_default`, a kreator
+  patchował tylko `RegistryName` (doklejał na końcu pliku). Loader renamuje `ShortPresetName`
+  → `RegistryName` przy wczytaniu (`DimensionPresetConfig.renameOldSettings`), nadpisując
+  doklejoną wartość → każdy nowy preset rozwiązywał się do `otg_default`, kolidował z
+  DefaultPreset i był ignorowany w `loadDimensionPresetsFromDisk` (widoczny tylko jako
+  szablon w kreatorze, którego lista skanuje dysk). `patchIniSettings` rozpoznaje teraz
+  legacy aliasy (`LEGACY_KEY_ALIASES`) i podmienia linię w miejscu zamiast doklejać duplikat
+  — naprawia ścieżkę kreatora i Clone. Poprzedni fix walidacji RegistryName (dev1) był
+  niepełny: sprawdzał wartość z pola GUI, nie tę, którą config przyjmie po skopiowaniu
+  szablonu z legacy aliasem.
+
 ### Release: 0.6.0-dev1
 
 ---
