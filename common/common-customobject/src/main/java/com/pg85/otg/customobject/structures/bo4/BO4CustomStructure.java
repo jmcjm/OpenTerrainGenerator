@@ -363,11 +363,15 @@ public class BO4CustomStructure extends CustomStructure
 				}
 			}
 
-			if(
-				config.spawnHeight == SpawnHeightEnum.highestBlock || 
-				config.spawnHeight == SpawnHeightEnum.highestSolidBlock
-			)
+			if(config.spawnHeight == SpawnHeightEnum.randomY)
 			{
+				if(config.maxHeight != config.minHeight)
+				{
+					startY = (short) (config.minHeight + new Random().nextInt(config.maxHeight - config.minHeight));
+				} else {
+					startY = (short) config.minHeight;
+				}
+			} else {
 				if(config.spawnAtWaterLevel)
 				{
 					startY = (short) (worldGenRegion.getCachedBiomeProvider().getBiomeConfig(centerX, centerZ).getSurfaceSettings().getWaterLevelMax());
@@ -383,13 +387,6 @@ public class BO4CustomStructure extends CustomStructure
 					} else {
 						startY  = (short) (highestBlock + 1);
 					}
-				}
-			} else {
-				if(config.maxHeight != config.minHeight)
-				{
-					startY = (short) (config.minHeight + new Random().nextInt(config.maxHeight - config.minHeight));
-				} else {
-					startY = (short) config.minHeight;
 				}
 			}
 

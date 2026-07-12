@@ -96,20 +96,17 @@ class BranchDataItem
 
 					if(childBO3.getConfig().overrideParentHeight)
 					{
-						if(childBO3.getConfig().spawnHeight == SpawnHeightEnum.highestBlock || childBO3.getConfig().spawnHeight == SpawnHeightEnum.highestSolidBlock || childBO3.getConfig().spawnAtWaterLevel)
+						if(
+							childBO3.getConfig().spawnHeight != SpawnHeightEnum.randomY
+							|| childBO3.getConfig().spawnAtWaterLevel
+						)
 						{
 							childCoordObject.y = (short) worldGenRegion.getHighestBlockYAtWithoutLoading(childCoordObject.getX(), childCoordObject.getZ(), true, childBO3.getConfig().spawnHeight != SpawnHeightEnum.highestSolidBlock || childBO3.getConfig().spawnAtWaterLevel, childBO3.getConfig().spawnHeight == SpawnHeightEnum.highestSolidBlock && !childBO3.getConfig().spawnAtWaterLevel, true, true);
-						}
-						else if(childBO3.getConfig().spawnHeight == SpawnHeightEnum.randomY)
-						{
+						} else {
 							childCoordObject.y = (short) RandomHelper.numberInRange(this.random, childBO3.getConfig().minHeight, childBO3.getConfig().maxHeight);
 						}
 					}
-					childCoordObject.y += childBO3.getConfig().heightOffset;
-					//if(childCoordObject.y < childBO3.settings.minHeight || childCoordObject.y > childBO3.settings.maxHeight)
-					{
-						//continue; // TODO: Don't do this for required branches? instead do rollback?
-					}
+					childCoordObject.y += (short) childBO3.getConfig().heightOffset;
 
 					int currentDepth1 = childCoordObject.isRequiredBranch ? currentDepth : currentDepth + 1;
 					int maxDepth1 = this.maxDepth;

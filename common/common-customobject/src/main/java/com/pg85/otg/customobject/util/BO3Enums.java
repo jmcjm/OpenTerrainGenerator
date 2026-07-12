@@ -7,7 +7,10 @@ public class BO3Enums
 	{
 		randomY,
 		highestBlock,
-		highestSolidBlock
+		highestSolidBlock,
+		// Like highestBlock/highestSolidBlock, but rolls rarity for every column in the chunk
+		surface,
+		solidSurface
 	}
 
 	// How an object should be extended to a surface

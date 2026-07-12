@@ -371,32 +371,33 @@ public class OTGChunkDecorator implements IChunkDecorator
 		);
 		if(customObject != null)
 		{
-			if(customObject instanceof BO3)
+			if(customObject instanceof BO3 bo3)
 			{
 				int y = 1;
-				if(((BO3)customObject).getConfig().getSpawnHeight() == SpawnHeightEnum.highestBlock)
+				SpawnHeightEnum spawnHeight = bo3.getConfig().getSpawnHeight();
+				if(spawnHeight == SpawnHeightEnum.highestBlock || spawnHeight == SpawnHeightEnum.surface)
 				{
 					y = worldGenRegion.getHighestBlockAboveYAt(targetChunk.getBlockX() + 15, targetChunk.getBlockZ() + 15) - 1;
 				}
-				else if(((BO3)customObject).getConfig().getSpawnHeight() == SpawnHeightEnum.highestSolidBlock)
+				else if(spawnHeight == SpawnHeightEnum.highestSolidBlock || spawnHeight == SpawnHeightEnum.solidSurface)
 				{
 					y = worldGenRegion.getBlockAboveSolidHeight(targetChunk.getBlockX() + 15, targetChunk.getBlockZ() + 15) - 1;
 				}
-				else if(((BO3)customObject).getConfig().getSpawnHeight() == SpawnHeightEnum.randomY)
+				else if(spawnHeight == SpawnHeightEnum.randomY)
 				{
-					y = (int) (((BO3)customObject).getConfig().minHeight + (rand.nextDouble() * (((BO3)customObject).getConfig().maxHeight - ((BO3)customObject).getConfig().minHeight)));
+					y = (int) (bo3.getConfig().minHeight + (rand.nextDouble() * (bo3.getConfig().maxHeight - bo3.getConfig().minHeight)));
 				}
 
-				y += ((BO3)customObject).getConfig().getSpawnHeightOffset();
+				y += bo3.getConfig().getSpawnHeightOffset();
 				// This may spawn the structure across chunk borders.
-				((BO3)customObject).spawnForced(
+				bo3.spawnForced(
 					structureCache,
 					worldGenRegion,
 					rand,
 					Rotation.NORTH,
-					targetChunk.getBlockX() + 16 + ((BO3)customObject).getXOffset(Rotation.NORTH),
+					targetChunk.getBlockX() + 16 + bo3.getXOffset(Rotation.NORTH),
 					y,
-					targetChunk.getBlockZ() + 16 + ((BO3)customObject).getZOffset(Rotation.NORTH),
+					targetChunk.getBlockZ() + 16 + bo3.getZOffset(Rotation.NORTH),
 					true
 				);
 			}
