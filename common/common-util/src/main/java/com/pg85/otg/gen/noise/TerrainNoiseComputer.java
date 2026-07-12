@@ -143,16 +143,14 @@ public class TerrainNoiseComputer {
             if (noiseHeight < -1.0D) {
                 noiseHeight = -1.0D;
             }
-            if (maxAverageDepth > 0.1) {
-                noiseHeight /= maxAverageDepth;
-            }
+            noiseHeight -= maxAverageDepth;
             noiseHeight /= 1.4D;
             noiseHeight /= 2.0D;
         } else {
             if (noiseHeight > 1.0D) {
                 noiseHeight = 1.0D;
             }
-            noiseHeight *= maxAverageHeight;
+            noiseHeight += maxAverageHeight;
             noiseHeight /= 8.0D;
         }
 
