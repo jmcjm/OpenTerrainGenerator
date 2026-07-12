@@ -128,11 +128,21 @@ public class BiomeTerrainSettings extends ConfigSection {
         builder.volatilityWeight2(reader.getSetting(VOLATILITY_WEIGHT_2));
         int configVersion = reader.getVersion();
         if (configVersion < 2) {
-            // In older configs, the values were stored as negative values and then converted
-            builder.volatility1(builder.volatility1 < 0.00D ? 1.0D / Math.abs(builder.volatility1) : builder.volatility1 + 1.0D);
-            builder.volatility2(builder.volatility2 < 0.00D ? 1.0D / Math.abs(builder.volatility2) : builder.volatility2 + 1.0D);
-            builder.volatilityWeight1((builder.volatilityWeight1 - 0.5D) * 24.0D);
-            builder.volatilityWeight2((builder.volatilityWeight2 - 0.5D) * 24.0D);
+            // In older configs, the values were stored as negative values and then converted.
+            // Only convert values actually present in the file — absent settings already
+            // hold the new-scale defaults.
+            if (reader.hasSetting(VOLATILITY_1)) {
+                builder.volatility1(builder.volatility1 < 0.00D ? 1.0D / Math.abs(builder.volatility1) : builder.volatility1 + 1.0D);
+            }
+            if (reader.hasSetting(VOLATILITY_2)) {
+                builder.volatility2(builder.volatility2 < 0.00D ? 1.0D / Math.abs(builder.volatility2) : builder.volatility2 + 1.0D);
+            }
+            if (reader.hasSetting(VOLATILITY_WEIGHT_1)) {
+                builder.volatilityWeight1((builder.volatilityWeight1 - 0.5D) * 24.0D);
+            }
+            if (reader.hasSetting(VOLATILITY_WEIGHT_2)) {
+                builder.volatilityWeight2((builder.volatilityWeight2 - 0.5D) * 24.0D);
+            }
         }
         if (configVersion < 3) {
             // Pre-v3 configs store PeakFactor/ValleyFactor as MaxAverageHeight/MaxAverageDepth

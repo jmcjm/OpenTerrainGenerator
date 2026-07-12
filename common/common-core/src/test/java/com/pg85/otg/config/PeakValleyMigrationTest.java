@@ -58,4 +58,13 @@ class PeakValleyMigrationTest {
         assertEquals(1.0, t.getPeakFactor(), 1e-9);
         assertEquals(1.0, t.getValleyFactor(), 1e-9);
     }
+
+    @Test
+    void v1FileWithoutVolatilityKeysKeepsNewDefaults() {
+        BiomeTerrainSettings t = read(mapOf("MaxAverageHeight: 2.0"));
+        assertEquals(1.0, t.getVolatility1(), 1e-9);
+        assertEquals(1.0, t.getVolatility2(), 1e-9);
+        assertEquals(0.45, t.getVolatilityWeight1(), 1e-9);
+        assertEquals(0.5, t.getVolatilityWeight2(), 1e-9);
+    }
 }
