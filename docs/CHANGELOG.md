@@ -1,5 +1,30 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-12**
+
+Ports from upstream PG85/OpenTerrainGenerator (branch 1.20.1):
+
+- **Restored legacy `MaxAverageDepth`/`MaxAverageHeight` semantics.** An inherited
+  upstream "improvement" turned `-=`/`+=` into `/=`/`*=` in depth noise
+  (`TerrainNoiseComputer.getExtraHeightAt`). With the default `MaxAverageHeight: 0`
+  the multiply zeroed out the entire positive branch of depth noise, silently
+  flattening terrain variation in every biome without an explicit value. Back to
+  subtract/add as in legacy OTG (port of upstream `4186dc650`).
+- **Reversed MinAltitude/MaxAltitude in resources no longer breaks spawning.**
+  New `ConfigFunction.readElevations()` swaps the values when min > max; used by
+  all 18 resources that parse an altitude pair (port of upstream `fc61a08e4`).
+- **New BO3 SpawnHeight values: `surface` and `solidSurface`.** They behave like
+  `highestBlock`/`highestSolidBlock`, but instead of `Frequency` random attempts
+  per chunk they roll `Rarity` for every column of the chunk (16×16) — for dense
+  surface coverage. BO4: startY logic reworked so every variant except `randomY`
+  takes the highest-block path (port of upstream `eb0c051d7`).
+- **Tag-based log/leaf detection.** `isLog()`/`isLeaves()` now use the vanilla
+  `minecraft:logs`/`minecraft:leaves` block tags (`SharedMaterialData`) instead of
+  hardcoded block lists — picks up cherry, mangrove, crimson/warped and modded
+  wood. Removed the duplicated block lists in `SharedWorldGenRegion.getHighestBlockYAt`;
+  leaves no longer count as solid for BO4 smoothing when `ignoreLeaves` is set
+  (port of upstream `a86bd2d60`).
+
 ### Release: 0.6.0-dev3
 
 ---

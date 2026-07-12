@@ -74,11 +74,13 @@ public class SharedMaterials extends LocalMaterials
 		ACACIA_LOG = SharedMaterialData.ofBlockState(Blocks.ACACIA_LOG.defaultBlockState());
 		BIRCH_LOG = SharedMaterialData.ofBlockState(Blocks.BIRCH_LOG.defaultBlockState());
 		DARK_OAK_LOG = SharedMaterialData.ofBlockState(Blocks.DARK_OAK_LOG.defaultBlockState());
+		JUNGLE_LOG = SharedMaterialData.ofBlockState(Blocks.JUNGLE_LOG.defaultBlockState());
 		OAK_LOG = SharedMaterialData.ofBlockState(Blocks.OAK_LOG.defaultBlockState());
 		SPRUCE_LOG = SharedMaterialData.ofBlockState(Blocks.SPRUCE_LOG.defaultBlockState());
 		ACACIA_WOOD = SharedMaterialData.ofBlockState(Blocks.ACACIA_WOOD.defaultBlockState());
 		BIRCH_WOOD = SharedMaterialData.ofBlockState(Blocks.BIRCH_WOOD.defaultBlockState());
 		DARK_OAK_WOOD = SharedMaterialData.ofBlockState(Blocks.DARK_OAK_WOOD.defaultBlockState());
+		JUNGLE_WOOD = SharedMaterialData.ofBlockState(Blocks.JUNGLE_WOOD.defaultBlockState());
 		OAK_WOOD = SharedMaterialData.ofBlockState(Blocks.OAK_WOOD.defaultBlockState());
 		SPRUCE_WOOD = SharedMaterialData.ofBlockState(Blocks.SPRUCE_WOOD.defaultBlockState());
 		STRIPPED_ACACIA_LOG = SharedMaterialData.ofBlockState(Blocks.STRIPPED_ACACIA_LOG.defaultBlockState());

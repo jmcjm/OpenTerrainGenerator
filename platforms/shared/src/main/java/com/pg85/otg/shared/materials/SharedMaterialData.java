@@ -160,6 +160,18 @@ public class SharedMaterialData extends LocalMaterialData implements IBlockState
     }
 
     @Override
+    protected boolean checkIsLog() {
+        // Tag-based check picks up vanilla + modded logs
+        return this.state != null && this.state.is(BlockTags.LOGS);
+    }
+
+    @Override
+    protected boolean checkIsLeaves() {
+        // Tag-based check picks up vanilla + modded leaves
+        return this.state != null && this.state.is(BlockTags.LEAVES);
+    }
+
+    @Override
     public boolean isLiquid() {
         return this.state != null && this.state.liquid();
     }

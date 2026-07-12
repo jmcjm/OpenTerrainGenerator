@@ -75,6 +75,7 @@ public class TestMaterials {
         LocalMaterials.ACACIA_LOG = TestMaterialData.solid("minecraft:acacia_log");
         LocalMaterials.BIRCH_LOG = TestMaterialData.solid("minecraft:birch_log");
         LocalMaterials.DARK_OAK_LOG = TestMaterialData.solid("minecraft:dark_oak_log");
+        LocalMaterials.JUNGLE_LOG = TestMaterialData.solid("minecraft:jungle_log");
         LocalMaterials.OAK_LOG = TestMaterialData.solid("minecraft:oak_log");
         LocalMaterials.SPRUCE_LOG = TestMaterialData.solid("minecraft:spruce_log");
         LocalMaterials.STRIPPED_ACACIA_LOG = TestMaterialData.solid("minecraft:stripped_acacia_log");
@@ -88,6 +89,7 @@ public class TestMaterials {
         LocalMaterials.ACACIA_WOOD = TestMaterialData.solid("minecraft:acacia_wood");
         LocalMaterials.BIRCH_WOOD = TestMaterialData.solid("minecraft:birch_wood");
         LocalMaterials.DARK_OAK_WOOD = TestMaterialData.solid("minecraft:dark_oak_wood");
+        LocalMaterials.JUNGLE_WOOD = TestMaterialData.solid("minecraft:jungle_wood");
         LocalMaterials.OAK_WOOD = TestMaterialData.solid("minecraft:oak_wood");
         LocalMaterials.SPRUCE_WOOD = TestMaterialData.solid("minecraft:spruce_wood");
 

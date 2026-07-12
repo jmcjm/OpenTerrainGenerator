@@ -346,35 +346,11 @@ public abstract class SharedWorldGenRegion extends LocalWorldGenRegion {
                 (
                     (
                         material.isSolid() &&
-                        (
-                            !ignoreLeaves ||
-                            (
-                                block != Blocks.ACACIA_LOG &&
-                                block != Blocks.BIRCH_LOG &&
-                                block != Blocks.DARK_OAK_LOG &&
-                                block != Blocks.JUNGLE_LOG &&
-                                block != Blocks.OAK_LOG &&
-                                block != Blocks.SPRUCE_LOG &&
-                                block != Blocks.STRIPPED_ACACIA_LOG &&
-                                block != Blocks.STRIPPED_BIRCH_LOG &&
-                                block != Blocks.STRIPPED_DARK_OAK_LOG &&
-                                block != Blocks.STRIPPED_JUNGLE_LOG &&
-                                block != Blocks.STRIPPED_OAK_LOG &&
-                                block != Blocks.STRIPPED_SPRUCE_LOG
-                            )
-                        )
+                        (!ignoreLeaves || (!material.isLog() && !material.isLeaves()))
                     )
                     ||
                     (
-                        !ignoreLeaves &&
-                        (
-                            block == Blocks.ACACIA_LEAVES ||
-                            block == Blocks.BIRCH_LEAVES ||
-                            block == Blocks.DARK_OAK_LEAVES ||
-                            block == Blocks.JUNGLE_LEAVES ||
-                            block == Blocks.OAK_LEAVES ||
-                            block == Blocks.SPRUCE_LEAVES
-                        )
+                        !ignoreLeaves && material.isLeaves()
                     ) || (
                         !ignoreSnow &&
                         block == Blocks.SNOW
