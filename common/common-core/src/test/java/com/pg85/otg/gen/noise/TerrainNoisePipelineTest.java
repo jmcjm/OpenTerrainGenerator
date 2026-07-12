@@ -67,7 +67,7 @@ class TerrainNoisePipelineTest {
     void zeroAmplitudeColumnIsPureFalloffShape() {
         var s = TerrainNoisePipeline.createNoiseSamplers(new Random(7L));
         var p = new TerrainNoisePipeline(s.interpolation(), s.lower(), s.upper(), s.depth(),
-                48, 33.5, 0.2, -0.05, 0.46875, 0.125, 0.25, 6.0, 0.0); // continentalScale=0, noiseAmplitude=0
+                48, 33.5, 0.0, -0.05, 0.46875, 0.125, 0.25, 6.0, 0.0); // continentalScale=0, noiseAmplitude=0
         BlendedBiomeParams params = new BlendedBiomeParams(
                 0.1f, 0.3f, 1.0, 1.0, 1.0, 1.0, 0.45, 0.5, 1.0, 1.0);
         double[] column = new double[49];
