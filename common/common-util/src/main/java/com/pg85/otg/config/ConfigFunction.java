@@ -3,6 +3,7 @@ package com.pg85.otg.config;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.exceptions.InvalidConfigException;
 import com.pg85.otg.util.OTGMaterialReader;
+import com.pg85.otg.util.Pair;
 import com.pg85.otg.util.helpers.StringHelper;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import com.pg85.otg.util.materials.MaterialSet;
@@ -136,6 +137,29 @@ public abstract class ConfigFunction<T>
 	protected final int readElevation(String string) throws InvalidConfigException
 	{
 		return StringHelper.readInt(string, Constants.WORLD_START_MIN_Y, Constants.WORLD_END_MAX_Y);
+	}
+
+	/**
+	 * Parses a min/max elevation pair, swapping the two if they were supplied
+	 * in reverse order.
+	 * @param minString The minimum elevation string.
+	 * @param maxString The maximum elevation string.
+	 * @return A pair of (min, max), guaranteed min &lt;= max.
+	 * @throws InvalidConfigException If either number is invalid.
+	 */
+	protected final Pair<Integer, Integer> readElevations(String minString, String maxString) throws InvalidConfigException
+	{
+		int min = readElevation(minString);
+		int max = readElevation(maxString);
+
+		if (min > max)
+		{
+			int temp = min;
+			min = max;
+			max = temp;
+		}
+
+		return Pair.of(min, max);
 	}
 
 	protected final int readFrequency(String string) throws InvalidConfigException

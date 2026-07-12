@@ -1,5 +1,6 @@
 package com.pg85.otg.gen.resource;
 
+import com.pg85.otg.util.Pair;
 import com.pg85.otg.config.biome.BiomeResourceBase;
 import com.pg85.otg.config.settings.biome.BiomeSettings;
 import com.pg85.otg.constants.Constants;
@@ -39,8 +40,9 @@ public class OreResource extends BiomeResourceBase implements IBasicResource
         this.numberOfBlocks = readInt(args.get(1), 1, 128);
         this.frequency = readInt(args.get(2), 1, 100);
         this.rarity = readRarity(args.get(3));
-        this.minAltitude = readElevation(args.get(4));
-        this.maxAltitude = readElevation(args.get(5));
+        Pair<Integer, Integer> elevations = readElevations(args.get(4), args.get(5));
+        this.minAltitude = elevations.getFirst();
+        this.maxAltitude = elevations.getSecond();
 
         // If there is a boolean parameter "true" after source blocks, read extended parameters (maxSpawn)
         boolean useExtendedParams = false;

@@ -1,5 +1,6 @@
 package com.pg85.otg.gen.resource;
 
+import com.pg85.otg.util.Pair;
 import com.pg85.otg.config.biome.BiomeResourceBase;
 import com.pg85.otg.config.settings.biome.BiomeSettings;
 import com.pg85.otg.exceptions.InvalidConfigException;
@@ -40,8 +41,9 @@ public abstract class VegetationResource extends BiomeResourceBase implements IB
         environment = MaterialGroup.valueOf(args.get(3));
         frequency = readInt(args.get(4), 1, 500);
         rarity = readRarity(args.get(5));
-        minAltitude = readElevation(args.get(6));
-        maxAltitude = readElevation(args.get(7));
+        Pair<Integer, Integer> elevations = readElevations(args.get(6), args.get(7));
+        minAltitude = elevations.getFirst();
+        maxAltitude = elevations.getSecond();
         sourceBlocks = readMaterials(args, sourceBlockIndex);
     }
 

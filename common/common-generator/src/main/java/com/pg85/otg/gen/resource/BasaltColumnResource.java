@@ -1,5 +1,6 @@
 package com.pg85.otg.gen.resource;
 
+import com.pg85.otg.util.Pair;
 import com.pg85.otg.config.settings.biome.BiomeSettings;
 import com.pg85.otg.exceptions.InvalidConfigException;
 import com.pg85.otg.gen.resource.util.PositionHelper;
@@ -34,8 +35,9 @@ public class BasaltColumnResource extends FrequencyResourceBase
         this.sizeVariance = readInt(args.get(4), 0, 5);
         this.baseHeight = readInt(args.get(5), 1, 5);
         this.heightVariance = readInt(args.get(6), 0, 5);
-        this.minAltitude = readElevation(args.get(7));
-        this.maxAltitude = readElevation(args.get(8));
+        Pair<Integer, Integer> elevations = readElevations(args.get(7), args.get(8));
+        this.minAltitude = elevations.getFirst();
+        this.maxAltitude = elevations.getSecond();
         this.sourceBlocks = readMaterials(args, 9);
     }
 
