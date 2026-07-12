@@ -2,7 +2,8 @@ package com.pg85.otg.client.editor.data;
 
 import com.pg85.otg.client.preview.world.PreviewBiomes;
 import com.pg85.otg.client.preview.world.PreviewWorld;
-import com.pg85.otg.gen.noise.TerrainNoiseComputer;
+import com.pg85.otg.gen.noise.BlendedBiomeParams;
+import com.pg85.otg.gen.noise.TerrainNoisePipeline;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
@@ -34,16 +35,7 @@ public class BiomeHeightmapGenerator {
 
     public record GenerationResult(Vector3f center, float radius, int[] heightmap, int size) {}
 
-    /** Terrain parameters extracted from biome + preset properties. */
-    private record TerrainParams(
-        double volatility1, double volatility2,
-        double volatilityWeight1, double volatilityWeight2,
-        double maxAverageDepth, double maxAverageHeight,
-        int waterLevel,
-        float vol, float h,
-        double horizontalScale, double verticalScale,
-        double horizontalStretch, double verticalStretch
-    ) {}
+    private record PreviewSetup(TerrainNoisePipeline pipeline, BlendedBiomeParams params, int waterLevel) {}
 
     /**
      * Generates heightmap and places blocks into world.
@@ -55,12 +47,9 @@ public class BiomeHeightmapGenerator {
                                              List<PropertyValue> presetProperties,
                                              long seed, int size) {
         world.clear();
-
-        TerrainParams params = readTerrainParams(biomeProperties, presetProperties);
-        var samplers = TerrainNoiseComputer.createNoiseSamplers(new Random(seed));
-
-        double[][] noiseColumns = computeNoiseColumns(size, params, samplers);
-        GenerationResult result = interpolateAndPlaceBlocks(world, noiseColumns, size, params);
+        PreviewSetup setup = buildPipeline(biomeProperties, presetProperties, seed);
+        double[][] noiseColumns = computeNoiseColumns(size, setup);
+        GenerationResult result = interpolateAndPlaceBlocks(world, noiseColumns, size, setup.waterLevel());
         // Assign the previewed biome so grass/leaves/water tint with colour instead of white.
         world.fillBiome(buildPreviewBiome(biomeProperties));
         return result;
@@ -97,19 +86,16 @@ public class BiomeHeightmapGenerator {
                 foliageOverride, grassOverride, modifier);
     }
 
-    private static TerrainParams readTerrainParams(List<PropertyValue> biomeProperties,
-                                                     List<PropertyValue> presetProperties) {
+    private static PreviewSetup buildPipeline(List<PropertyValue> biomeProperties,
+                                              List<PropertyValue> presetProperties, long seed) {
         float biomeHeight = getFloat(biomeProperties, "BiomeHeight", 0.1f);
         float biomeVolatility = getFloat(biomeProperties, "BiomeVolatility", 0.3f);
-        double volatility1 = getFloat(biomeProperties, "Volatility1", 0.0f);
-        double volatility2 = getFloat(biomeProperties, "Volatility2", 0.0f);
-        double volatilityWeight1 = getFloat(biomeProperties, "VolatilityWeight1", 0.5f);
-        double volatilityWeight2 = getFloat(biomeProperties, "VolatilityWeight2", 0.45f);
-        double maxAverageDepth = getFloat(biomeProperties, "ValleyFactor", 1.0f);
-        double maxAverageHeight = getFloat(biomeProperties, "PeakFactor", 1.0f);
-
-        if (volatility1 == 0) volatility1 = biomeVolatility;
-        if (volatility2 == 0) volatility2 = biomeVolatility;
+        double volatility1 = getFloat(biomeProperties, "Volatility1", 1.0f);
+        double volatility2 = getFloat(biomeProperties, "Volatility2", 1.0f);
+        double volatilityWeight1 = getFloat(biomeProperties, "VolatilityWeight1", 0.45f);
+        double volatilityWeight2 = getFloat(biomeProperties, "VolatilityWeight2", 0.5f);
+        double valleyFactor = getFloat(biomeProperties, "ValleyFactor", 1.0f);
+        double peakFactor = getFloat(biomeProperties, "PeakFactor", 1.0f);
 
         boolean useWorldWater = getBool(biomeProperties, "UseWorldWaterLevel", true);
         int waterLevel = useWorldWater
@@ -118,58 +104,39 @@ public class BiomeHeightmapGenerator {
         double fractureH = getFloat(presetProperties, "FractureHorizontal", 0f);
         double fractureV = getFloat(presetProperties, "FractureVertical", 0f);
 
-        float vol = biomeVolatility * 0.9f + 0.1f;
-        float h = (biomeHeight * 4.0f - 1.0f) / 8.0f;
-
-        double horizontalScale = TerrainNoiseComputer.WORLD_GEN_CONSTANT * fractureH;
-        double verticalScale = TerrainNoiseComputer.WORLD_GEN_CONSTANT * fractureV;
-
-        return new TerrainParams(
-            volatility1, volatility2, volatilityWeight1, volatilityWeight2,
-            maxAverageDepth, maxAverageHeight, waterLevel,
-            vol, h, horizontalScale, verticalScale,
-            horizontalScale / 80.0, verticalScale / 160.0
+        var samplers = TerrainNoisePipeline.createNoiseSamplers(new Random(seed));
+        TerrainNoisePipeline pipeline = new TerrainNoisePipeline(
+            samplers.interpolation(), samplers.lower(), samplers.upper(), samplers.depth(),
+            NOISE_SIZE_Y,
+            TerrainNoisePipeline.REFERENCE_SURFACE_SECTIONS,
+            getFloat(presetProperties, "ContinentalScale", 0.2f),
+            getFloat(presetProperties, "ContinentalBias", -0.05f),
+            getFloat(presetProperties, "BaseHeightFraction", 0.46875f),
+            getFloat(presetProperties, "BiomeHeightWeight", 0.125f),
+            getFloat(presetProperties, "ContinentalHeightWeight", 0.25f),
+            getFloat(presetProperties, "FalloffSteepness", 6.0f),
+            getFloat(presetProperties, "NoiseAmplitude", 1.0f)
         );
+        BlendedBiomeParams params = new BlendedBiomeParams(
+            biomeHeight, biomeVolatility,
+            volatility1, volatility2,
+            fractureH, fractureV,
+            volatilityWeight1, volatilityWeight2,
+            valleyFactor, peakFactor
+        );
+        return new PreviewSetup(pipeline, params, waterLevel);
     }
 
-    private static double[][] computeNoiseColumns(int size, TerrainParams p,
-                                                    TerrainNoiseComputer.NoiseSamplers samplers) {
+    private static double[][] computeNoiseColumns(int size, PreviewSetup setup) {
         int noiseCountX = size / NOISE_GRID_SPACING + 1;
         int noiseCountZ = size / NOISE_GRID_SPACING + 1;
         double[][] noiseColumns = new double[noiseCountX * noiseCountZ][];
+        double[] zeroChc = new double[NOISE_SIZE_Y + 1];
 
         for (int nx = 0; nx < noiseCountX; nx++) {
             for (int nz = 0; nz < noiseCountZ; nz++) {
-                float extraHeight = (float)(TerrainNoiseComputer.getExtraHeightAt(
-                    samplers.depth(), nx, nz, p.maxAverageDepth, p.maxAverageHeight) * 0.2);
-                float columnRefY = TerrainNoiseComputer.REFERENCE_Y_SECTIONS * (2.0f + p.h + extraHeight) / 4.0f;
-
                 double[] column = new double[NOISE_SIZE_Y + 1];
-                for (int y = 0; y <= NOISE_SIZE_Y; y++) {
-                    double falloff = (columnRefY - y) * 6.0 / p.vol;
-                    if (falloff > 0) falloff *= 4.0;
-
-                    double noise = TerrainNoiseComputer.sampleNoise(
-                        nx, y, nz,
-                        p.horizontalScale, p.verticalScale,
-                        p.horizontalStretch, p.verticalStretch,
-                        p.volatility1, p.volatility2,
-                        p.volatilityWeight1, p.volatilityWeight2,
-                        samplers.interpolation(), samplers.lower(), samplers.upper());
-
-                    noise += falloff;
-
-                    double heightDiff = y - columnRefY;
-                    if (heightDiff > 4) noise -= (heightDiff - 4) * (heightDiff - 4) * 0.5;
-
-                    int reductionStartY = NOISE_SIZE_Y - 4;
-                    if (y > reductionStartY) {
-                        double t = ((double) y - reductionStartY) / 4.0;
-                        noise = noise + (-10 - noise) * Math.max(0, Math.min(1, t));
-                    }
-
-                    column[y] = noise;
-                }
+                setup.pipeline().generateColumn(column, nx, nz, setup.params(), zeroChc, false);
                 noiseColumns[nx * noiseCountZ + nz] = column;
             }
         }
@@ -178,7 +145,7 @@ public class BiomeHeightmapGenerator {
 
     private static GenerationResult interpolateAndPlaceBlocks(PreviewWorld world,
                                                                 double[][] noiseColumns,
-                                                                int size, TerrainParams p) {
+                                                                int size, int waterLevel) {
         int noiseCountX = size / NOISE_GRID_SPACING + 1;
         int noiseCountZ = size / NOISE_GRID_SPACING + 1;
 
@@ -207,7 +174,7 @@ public class BiomeHeightmapGenerator {
                 if (surfaceY < minSurfaceY) minSurfaceY = surfaceY;
                 if (surfaceY > maxSurfaceY) maxSurfaceY = surfaceY;
 
-                placeColumnBlocks(world, bx, bz, surfaceY, p.waterLevel);
+                placeColumnBlocks(world, bx, bz, surfaceY, waterLevel);
             }
         }
 
