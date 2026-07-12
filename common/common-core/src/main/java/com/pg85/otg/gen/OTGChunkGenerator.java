@@ -10,9 +10,9 @@ import com.pg85.otg.gen.biome.CachedBiomeProvider;
 import com.pg85.otg.gen.carver.Carver;
 import com.pg85.otg.gen.carver.CaveCarver;
 import com.pg85.otg.gen.carver.RavineCarver;
-import com.pg85.otg.gen.noise.OctavePerlinNoiseSampler;
+import com.pg85.otg.gen.noise.BlendedBiomeParams;
 import com.pg85.otg.gen.noise.PerlinNoiseSampler;
-import com.pg85.otg.gen.noise.TerrainNoiseComputer;
+import com.pg85.otg.gen.noise.TerrainNoisePipeline;
 import com.pg85.otg.gen.noise.legacy.NoiseGeneratorPerlinMesaBlocks;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import com.pg85.otg.util.materials.LocalMaterials;
@@ -41,14 +41,6 @@ import java.util.function.Consumer;
  */
 //@SuppressWarnings("deprecation")
 public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
-    // "It's a number that made the worldgen look good!" - Dinnerbone 2020
-    private static final double WORLD_GEN_CONSTANT = 684.412;
-
-    // Reference Y sections - controls base terrain height calculation
-    // Value 36 gives terrain at ~Y=85 for plains (about 20 blocks above sea level)
-    // Original 256-world value was 33, but 1.18+ worlds with minY=-64 need slightly higher
-    private static final float REFERENCE_Y_SECTIONS = 33.5f;
-
     private static final float[] BIOME_WEIGHT_TABLE = make(
             new float[65 * 65], (array) -> {
                 for (int x = -32; x <= 32; ++x) {
@@ -78,10 +70,7 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
 
     // Set once in setSeed() before worker threads start.
     // Thread-safety: happens-before established by worker thread creation in queueChunksForWorkerThreads().
-    private OctavePerlinNoiseSampler interpolationNoise;     // Volatility noise
-    private OctavePerlinNoiseSampler lowerInterpolatedNoise; // Volatility1 noise
-    private OctavePerlinNoiseSampler upperInterpolatedNoise; // Volatility2 noise
-    private OctavePerlinNoiseSampler depthNoise;
+    private TerrainNoisePipeline noisePipeline;
     private PerlinNoiseSampler deepslateNoise; // noisy stone->deepslate boundary around Y=0
 
     private final DimensionPreset preset;
@@ -179,11 +168,20 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
         // Setup noises
         Random random = new Random(seed);
 
-        var samplers = TerrainNoiseComputer.createNoiseSamplers(random);
-        this.interpolationNoise = samplers.interpolation();
-        this.lowerInterpolatedNoise = samplers.lower();
-        this.upperInterpolatedNoise = samplers.upper();
-        this.depthNoise = samplers.depth();
+        TerrainNoisePipeline.NoiseSamplers samplers = TerrainNoisePipeline.createNoiseSamplers(random);
+        TerrainSettings terrainSettings = this.preset.getConfig().getTerrainSettings();
+        this.noisePipeline = new TerrainNoisePipeline(
+                samplers.interpolation(), samplers.lower(), samplers.upper(), samplers.depth(),
+                this.noiseSizeY,
+                TerrainNoisePipeline.REFERENCE_SURFACE_SECTIONS,
+                terrainSettings.getContinentalScale(),
+                terrainSettings.getContinentalBias(),
+                terrainSettings.getBaseHeightFraction(),
+                terrainSettings.getBiomeHeightWeight(),
+                terrainSettings.getContinentalHeightWeight(),
+                terrainSettings.getFalloffSteepness(),
+                terrainSettings.getNoiseAmplitude()
+        );
         this.biomeBlocksNoiseGen = new NoiseGeneratorPerlinMesaBlocks(random, 4);
         // Separate seed so it doesn't perturb the terrain sampler sequence above.
         this.deepslateNoise = new PerlinNoiseSampler(new Random(seed ^ 0x6CB9D7E3A155EC53L));
@@ -300,35 +298,6 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
         return yOffset * density;
     }
 
-    private double sampleNoise(
-            int x, int y, int z,
-            double horizontalScale, double verticalScale,
-            double horizontalStretch, double verticalStretch,
-            double volatility1, double volatility2,
-            double volatilityWeight1, double volatilityWeight2
-    ) {
-        return TerrainNoiseComputer.sampleNoise(
-                x, y, z,
-                horizontalScale, verticalScale,
-                horizontalStretch, verticalStretch,
-                volatility1, volatility2,
-                volatilityWeight1, volatilityWeight2,
-                this.interpolationNoise, this.lowerInterpolatedNoise, this.upperInterpolatedNoise
-        );
-    }
-
-    private double getInterpolationNoise(int x, int y, int z, double horizontalStretch, double verticalStretch) {
-        return TerrainNoiseComputer.getInterpolationNoise(this.interpolationNoise, x, y, z, horizontalStretch, verticalStretch);
-    }
-
-    private double getInterpolatedNoise(OctavePerlinNoiseSampler sampler, int x, int y, int z, double horizontalScale, double verticalScale) {
-        return TerrainNoiseComputer.getInterpolatedNoise(sampler, x, y, z, horizontalScale, verticalScale);
-    }
-
-    private double getExtraHeightAt(int x, int z, double maxAverageDepth, double maxAverageHeight) {
-        return TerrainNoiseComputer.getExtraHeightAt(this.depthNoise, x, z, maxAverageDepth, maxAverageHeight);
-    }
-
     public void getNoiseColumn(double[] buffer, int x, int z) {
         // TODO: check only for edges
         this.noiseCache.get().get(buffer, x, z);
@@ -345,8 +314,8 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
         double verticalFracture = 0;
         double volatilityWeight1 = 0;
         double volatilityWeight2 = 0;
-        double maxAverageDepth = 0;
-        double maxAverageHeight = 0;
+        double valleyFactor = 0;
+        double peakFactor = 0;
         double[] chc = new double[this.noiseSizeY + 1];
         float weight = 0;
         BiomeTerrainSettings centerTerrainSettings = center.getTerrainSettings();
@@ -403,8 +372,8 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
                 verticalFracture += terrainSettings.getFractureVertical() * weightAt;
                 volatilityWeight1 += biomeTerrainSettings.getVolatilityWeight1() * weightAt;
                 volatilityWeight2 += biomeTerrainSettings.getVolatilityWeight2() * weightAt;
-                maxAverageDepth += biomeTerrainSettings.getValleyFactor() * weightAt;
-                maxAverageHeight += biomeTerrainSettings.getPeakFactor() * weightAt;
+                valleyFactor += biomeTerrainSettings.getValleyFactor() * weightAt;
+                peakFactor += biomeTerrainSettings.getPeakFactor() * weightAt;
             }
         }
 
@@ -441,83 +410,25 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
         verticalFracture /= weight;
         volatilityWeight1 /= weight;
         volatilityWeight2 /= weight;
-        maxAverageDepth /= weight;
-        maxAverageHeight /= weight;
+        valleyFactor /= weight;
+        peakFactor /= weight;
 
         // Normalize CHC
         for (int y = 0; y < this.noiseSizeY + 1; y++) {
             chc[y] /= chcWeight;
         }
 
-        // Vary the height with more noise
-        float extraHeight = (float) (getExtraHeightAt(noiseX, noiseZ, maxAverageDepth, maxAverageHeight) * 0.2);
-
-        // Do some math on volatility and height
-        volatility = volatility * 0.9f + 0.1f;
-        height = (height * 4.0F - 1.0F) / 8.0F;
-
-        // Factor in y sections (use reference from old 256-block world for consistent terrain height)
-        height = REFERENCE_Y_SECTIONS * (2.0f + height + extraHeight) / 4.0f;
-
-        double falloff;
-        double horizontalScale;
-        double verticalScale;
-        double noise;
-        for (int y = 0; y <= this.noiseSizeY; ++y) {
-            // Calculate falloff - controls how quickly terrain density drops with height difference
-            // Using fixed coefficient 6.0 (was 12*128/worldHeight which varied with world size)
-            falloff = (height - y) * 6.0D / volatility;
-            if (falloff > 0.0) {
-                falloff *= 4.0;
-            }
-
-            horizontalScale = WORLD_GEN_CONSTANT * horizontalFracture;
-            verticalScale = WORLD_GEN_CONSTANT * verticalFracture;
-            noise = sampleNoise(
-                    noiseX,
-                    y,
-                    noiseZ,
-                    horizontalScale,
-                    verticalScale,
-                    horizontalScale / 80,
-                    verticalScale / 160,
-                    volatility1,
-                    volatility2,
-                    volatilityWeight1,
-                    volatilityWeight2
-            );
-
-            if (!center.getTerrainSettings().isDisableBiomeHeight()) {
-                // Add the falloff at this height
-                noise += falloff;
-
-                // TODO: get rid of this - anti-floating terrain should be solved via proper noise settings
-                //  and biome .bc configuration, not a hardcoded penalty
-                double heightDiff = y - height;
-                if (heightDiff > 4) {
-                    double floatingPenalty = (heightDiff - 4) * (heightDiff - 4) * 0.5;
-                    noise -= floatingPenalty;
-                }
-
-                // Reduce the last 4 layers (dynamically calculated based on world height)
-                // For 256 world (32 layers): y > 28, for 384 world (48 layers): y > 44
-                int reductionStartY = this.noiseSizeY - 4;
-                if (y > reductionStartY) {
-                    noise = MathHelper.clampedLerp(noise, -10, ((double) y - reductionStartY) / 4.0);
-                }
-            }
-
-            // Add chc data
-            noise += chc[y];
-
-            // Store value
-            noiseColumn[y] = noise;
-
-            // DEBUG: Log noise values for edge chunks at specific Y levels
-//            if (debugThisColumn && (y == 0 || y == 8 || y == 16 || y == 24 || y == 32)) {
-//                System.err.println(String.format("  y=%d: noise=%.2f, falloff=%.2f", y, noise, falloff));
-//            }
-        }
+        BlendedBiomeParams params = new BlendedBiomeParams(
+                height, volatility,
+                volatility1, volatility2,
+                horizontalFracture, verticalFracture,
+                volatilityWeight1, volatilityWeight2,
+                valleyFactor, peakFactor
+        );
+        this.noisePipeline.generateColumn(
+                noiseColumn, noiseX, noiseZ, params, chc,
+                center.getTerrainSettings().isDisableBiomeHeight()
+        );
     }
 
     // Surface / ground / stone blocks / SAGC
