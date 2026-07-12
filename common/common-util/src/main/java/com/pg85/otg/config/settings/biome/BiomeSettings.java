@@ -139,6 +139,8 @@ public abstract class BiomeSettings implements ConfigFile {
         settings.renameOldSetting("IsleInBiome", BiomePlacementSettings.ISLE_IN_BIOMES);
         settings.renameOldSetting("BiomeIsBorder", BiomePlacementSettings.BORDER_IN_BIOMES);
         settings.renameOldSetting("BiomeColor", BiomePlacementSettings.BIOME_MAP_COLOR);
+        settings.renameOldSetting("MaxAverageHeight", BiomeTerrainSettings.PEAK_FACTOR);
+        settings.renameOldSetting("MaxAverageDepth", BiomeTerrainSettings.VALLEY_FACTOR);
     }
 
     protected void readDefaultSettings(SettingsMap settingsMap, DimensionPresetSettings presetSettings, IConfigFunctionProvider provider) {

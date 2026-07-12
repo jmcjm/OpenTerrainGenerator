@@ -43,7 +43,7 @@ public final class RawSettingValue
 	 *					 "Foo(Bar)".
 	 * @return The setting.
 	 */
-	static RawSettingValue create(ValueType valueType, String settingValue)
+	public static RawSettingValue create(ValueType valueType, String settingValue)
 	{
 		if (settingValue == null || valueType == null)
 		{

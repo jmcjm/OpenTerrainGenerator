@@ -105,8 +105,8 @@ public class BiomeHeightmapGenerator {
         double volatility2 = getFloat(biomeProperties, "Volatility2", 0.0f);
         double volatilityWeight1 = getFloat(biomeProperties, "VolatilityWeight1", 0.5f);
         double volatilityWeight2 = getFloat(biomeProperties, "VolatilityWeight2", 0.45f);
-        double maxAverageDepth = getFloat(biomeProperties, "MaxAverageDepth", 0.0f);
-        double maxAverageHeight = getFloat(biomeProperties, "MaxAverageHeight", 0.0f);
+        double maxAverageDepth = getFloat(biomeProperties, "ValleyFactor", 1.0f);
+        double maxAverageHeight = getFloat(biomeProperties, "PeakFactor", 1.0f);
 
         if (volatility1 == 0) volatility1 = biomeVolatility;
         if (volatility2 == 0) volatility2 = biomeVolatility;

@@ -115,13 +115,11 @@ public class BiomeConfigWriter {
                 "Works the same way as SmoothRadius but only acts on CustomHeightControl. Must be between 0 and 32, inclusive.",
                 "Does nothing if Custom Height Control smoothing is not enabled in the world config.");
 
-        writer.putSetting(BiomeTerrainSettings.MAX_AVERAGE_HEIGHT, biomeConfig.getTerrainSettings().getMaxAverageHeight(),
-                "If this value is greater than 0, then it will affect how much, on average, the terrain will rise before leveling off when it begins to increase in elevation.",
-                "If the value is less than 0, then it will cause the terrain to either increase to a lower height before leveling out or decrease in height if the value is a large enough negative.");
+        writer.putSetting(BiomeTerrainSettings.PEAK_FACTOR, biomeConfig.getTerrainSettings().getPeakFactor(),
+                "How strongly this biome responds to continental peaks (multiplier, 1.0 = full response).");
 
-        writer.putSetting(BiomeTerrainSettings.MAX_AVERAGE_DEPTH, biomeConfig.getTerrainSettings().getMaxAverageDepth(),
-                "If this value is greater than 0, then it will affect how much, on average, the terrain (usually at the ottom of the ocean) will fall before leveling off when it begins to decrease in elevation. ",
-                "If the value is less than 0, then it will cause the terrain to either fall to a lesser depth before leveling out or increase in height if the value is a large enough negative.");
+        writer.putSetting(BiomeTerrainSettings.VALLEY_FACTOR, biomeConfig.getTerrainSettings().getValleyFactor(),
+                "How strongly this biome responds to continental valleys (multiplier, 1.0 = full response).");
 
         writer.putSetting(BiomeTerrainSettings.VOLATILITY_1, biomeConfig.getTerrainSettings().getVolatility1(),
                 "Another type of noise. This noise is independent from biomes. The larger the values the more chaotic/volatile landscape generation becomes.",

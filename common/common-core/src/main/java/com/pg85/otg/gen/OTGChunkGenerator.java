@@ -403,8 +403,8 @@ public class OTGChunkGenerator implements ISurfaceGeneratorNoiseProvider {
                 verticalFracture += terrainSettings.getFractureVertical() * weightAt;
                 volatilityWeight1 += biomeTerrainSettings.getVolatilityWeight1() * weightAt;
                 volatilityWeight2 += biomeTerrainSettings.getVolatilityWeight2() * weightAt;
-                maxAverageDepth += biomeTerrainSettings.getMaxAverageDepth() * weightAt;
-                maxAverageHeight += biomeTerrainSettings.getMaxAverageHeight() * weightAt;
+                maxAverageDepth += biomeTerrainSettings.getValleyFactor() * weightAt;
+                maxAverageHeight += biomeTerrainSettings.getPeakFactor() * weightAt;
             }
         }
 

@@ -30,8 +30,11 @@ public class Constants
 	Version 2:
 	Changed from positive/negative double to positive double:
 	- FractureHorizontal, FractionVertical, Volatility1, Volatility2
+	Version 3:
+	Renamed MaxAverageHeight/MaxAverageDepth to PeakFactor/ValleyFactor and changed
+	them from a 0-centered additive scale to a 1-centered multiplier scale.
 	*/
-	public static final int ConfigVersion = 2; // Increment this when the config file format changes
+	public static final int ConfigVersion = 3; // Increment this when the config file format changes
 	public static final Setting<Integer> ConfigVersionSetting = Settings.intSetting("ConfigVersion", ConfigVersion, 0, Integer.MAX_VALUE);
 	
 	// Plugin Defaults
