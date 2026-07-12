@@ -76,6 +76,24 @@ public class PreviewWorld implements BlockAndTintGetter {
         chunks.clear();
     }
 
+    /**
+     * Assigns a single biome to every quart of every loaded chunk, so biome-tinted blocks render
+     * with colour. Used by single-biome previews (terrain preview, BO preview) that place blocks
+     * without populating biome data; the full world preview sets biomes via {@link #addChunkFromAccess}.
+     */
+    public void fillBiome(Holder<Biome> biome) {
+        for (PreviewChunk chunk : chunks.values()) {
+            int quartsY = chunk.getHeight() / 4;
+            for (int bx = 0; bx < 4; bx++) {
+                for (int bz = 0; bz < 4; bz++) {
+                    for (int by = 0; by < quartsY; by++) {
+                        chunk.setBiome(bx, by, bz, biome);
+                    }
+                }
+            }
+        }
+    }
+
     public boolean hasChunk(int cx, int cz) {
         return chunks.containsKey(chunkKey(cx, cz));
     }

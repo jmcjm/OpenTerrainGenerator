@@ -1,8 +1,12 @@
 package com.pg85.otg.client.editor.data;
 
+import com.pg85.otg.client.preview.world.PreviewBiomes;
 import com.pg85.otg.client.preview.world.PreviewWorld;
 import com.pg85.otg.gen.noise.TerrainNoiseComputer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Vector3f;
@@ -56,7 +60,41 @@ public class BiomeHeightmapGenerator {
         var samplers = TerrainNoiseComputer.createNoiseSamplers(new Random(seed));
 
         double[][] noiseColumns = computeNoiseColumns(size, params, samplers);
-        return interpolateAndPlaceBlocks(world, noiseColumns, size, params);
+        GenerationResult result = interpolateAndPlaceBlocks(world, noiseColumns, size, params);
+        // Assign the previewed biome so grass/leaves/water tint with colour instead of white.
+        world.fillBiome(buildPreviewBiome(biomeProperties));
+        return result;
+    }
+
+    /**
+     * Builds a transient biome from the edited colour/climate properties, mirroring
+     * {@code BiomeFactory.getSpecialEffects}: a colour left at the default white (0xFFFFFF) means
+     * "use the vanilla climate-derived colour", so it falls back to temperature/downfall.
+     */
+    private static Holder<Biome> buildPreviewBiome(List<PropertyValue> props) {
+        float temperature = getFloat(props, "BiomeTemperature", 0.5f);
+        float downfall = getFloat(props, "BiomeWetness", 0.5f);
+        int foliage = getColor(props, "FoliageColor", 0xFFFFFF);
+        int grass = getColor(props, "GrassColor", 0xFFFFFF);
+        int water = getColor(props, "WaterColor", 0xFFFFFF);
+        int waterFog = getColor(props, "WaterFogColor", 0x000000);
+        int fog = getColor(props, "FogColor", 0x000000);
+        int sky = getColor(props, "SkyColor", 0x7BA5FF);
+
+        Integer foliageOverride = foliage != 0xFFFFFF ? foliage : null;
+        Integer grassOverride = grass != 0xFFFFFF ? grass : null;
+        int waterColor = water != 0xFFFFFF ? water : 4159204;       // vanilla default water
+        int waterFogColor = waterFog != 0x000000 ? waterFog : 329011; // vanilla default water fog
+        int fogColor = fog != 0x000000 ? fog : 0xC0D8FF;            // neutral overworld fog (does not tint blocks)
+
+        BiomeSpecialEffects.GrassColorModifier modifier = switch (getString(props, "GrassColorModifier", "None")) {
+            case "Swamp" -> BiomeSpecialEffects.GrassColorModifier.SWAMP;
+            case "DarkForest" -> BiomeSpecialEffects.GrassColorModifier.DARK_FOREST;
+            default -> null;
+        };
+
+        return PreviewBiomes.build(temperature, downfall, fogColor, waterFogColor, waterColor, sky,
+                foliageOverride, grassOverride, modifier);
     }
 
     private static TerrainParams readTerrainParams(List<PropertyValue> biomeProperties,
@@ -251,5 +289,22 @@ public class BiomeHeightmapGenerator {
 
     private static int getInt(List<PropertyValue> p, String n, int d) {
         return getProperty(p, n, d, Integer::parseInt);
+    }
+
+    private static String getString(List<PropertyValue> p, String n, String d) {
+        return getProperty(p, n, d, v -> v);
+    }
+
+    /** Reads a colour setting (e.g. {@code 0x7BA5FF}) as a 24-bit RGB int. */
+    private static int getColor(List<PropertyValue> p, String n, int d) {
+        return getProperty(p, n, d, BiomeHeightmapGenerator::parseColor) & 0xFFFFFF;
+    }
+
+    private static int parseColor(String s) {
+        s = s.trim();
+        if (s.startsWith("0x") || s.startsWith("0X")) return (int) Long.parseLong(s.substring(2), 16);
+        if (s.startsWith("#")) return (int) Long.parseLong(s.substring(1), 16);
+        try { return Integer.parseInt(s); }
+        catch (NumberFormatException e) { return (int) Long.parseLong(s, 16); }
     }
 }

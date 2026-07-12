@@ -6,6 +6,7 @@ import com.pg85.otg.client.editor.widget.Viewport3DRenderer;
 import com.pg85.otg.client.preview.BOPreviewHelper;
 import com.pg85.otg.client.preview.OrbitCamera;
 import com.pg85.otg.client.preview.PreviewRenderer;
+import com.pg85.otg.client.preview.world.PreviewBiomes;
 import com.pg85.otg.client.preview.world.PreviewWorld;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.presets.DimensionPreset;
@@ -173,6 +174,9 @@ public class BOBrowserScreen extends Screen {
 
         lastBounds = bounds;
         loadedObjectName = objectName;
+
+        // BO objects carry no biome — assign a neutral temperate one so leaves/grass tint with colour.
+        boPreviewWorld.fillBiome(PreviewBiomes.defaultForest());
 
         // Create renderer and compile
         boRenderer = new PreviewRenderer(boPreviewWorld);
