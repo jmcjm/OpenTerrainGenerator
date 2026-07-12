@@ -1,5 +1,23 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+### Release: 0.6.0-dev3
+
+---
+
+**2026-07-12**
+
+- **Edytor: bloki tintowane biomem nie renderują się już na biało w podglądach.**
+  `PreviewWorld.getBlockTint` zwracał -1 (biały), gdy chunk nie miał przypisanego biomu —
+  a podgląd terenu w BiomeEditorze i podgląd 3D w BO Store stawiają bloki bez danych
+  biomów, więc trawa, liście, woda i winorośle były białe. Nowa klasa `PreviewBiomes`
+  buduje tymczasowe, nierejestrowane biomy (`Holder.direct`), a `PreviewWorld.fillBiome`
+  wypełnia nimi wszystkie quarty załadowanych chunków. Podgląd terenu składa biom
+  z edytowanych propsów (`BiomeTemperature`, `BiomeWetness`, `FoliageColor`, `GrassColor`,
+  `WaterColor`, `WaterFogColor`, `FogColor`, `SkyColor`, `GrassColorModifier`) z semantyką
+  jak w `BiomeFactory`: kolor `0xFFFFFF` = użyj koloru wyliczonego z klimatu vanilla.
+  Podgląd BO dostaje neutralny las umiarkowany, bo obiekty BO nie niosą biomu. Pełny
+  world preview bez zmian — biomy bierze z `addChunkFromAccess`.
+
 ### Release: 0.6.0-dev2
 
 ---
