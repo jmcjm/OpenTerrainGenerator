@@ -301,6 +301,14 @@ public class DimensionPresetWriter {
                 "Values less than 0 will make terrain volatility more 'spiky' but lessen the likelihood of overhangs and floating terrain."
         );
 
+        writer.putSetting(TerrainSettings.CONTINENTAL_SCALE, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.CONTINENTAL_BIAS, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.BASE_HEIGHT_FRACTION, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.BIOME_HEIGHT_WEIGHT, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.CONTINENTAL_HEIGHT_WEIGHT, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.FALLOFF_STEEPNESS, presetConfig.getTerrainSettings());
+        writer.putSetting(TerrainSettings.NOISE_AMPLITUDE, presetConfig.getTerrainSettings());
+
         writer.header1("Blocks");
 
         writer.putSetting(BlockSettings.REMOVE_SURFACE_STONE, presetConfig.getBlockSettings().isRemoveSurfaceStone(),

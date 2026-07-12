@@ -19,6 +19,13 @@ public class TerrainSettings extends ConfigSection {
     private final int waterLevelMax;
     private final int waterLevelMin;
     private final int carverLavaBlockHeight;
+    private final double continentalScale;
+    private final double continentalBias;
+    private final double baseHeightFraction;
+    private final double biomeHeightWeight;
+    private final double continentalHeightWeight;
+    private final double falloffSteepness;
+    private final double noiseAmplitude;
 
     public static final Setting<Boolean> BETTER_SNOW_FALL = Settings.booleanSetting(
             "BetterSnowFall", false,
@@ -72,6 +79,56 @@ public class TerrainSettings extends ConfigSection {
             "Values above 0 will lead to large cliffs/overhangs, floating islands, and/or a cavern world depending on other settings.",
             "Values less than 0 will make terrain volatility more 'spiky' but lessen the likelihood of overhangs and floating terrain."
     );
+    public static final Setting<Double> CONTINENTAL_SCALE = Settings.doubleSetting(
+            "ContinentalScale", 0.2, 0.0, 10.0,
+            t -> ((TerrainSettings) t).getContinentalScale(),
+            "Overall amplitude of continental height variation.",
+            "Controls how much the large-scale terrain undulates vertically.",
+            "0 = no continental variation (flat baseline), 0.2 = default, higher = more dramatic."
+    );
+    public static final Setting<Double> CONTINENTAL_BIAS = Settings.doubleSetting(
+            "ContinentalBias", -0.05, -1.0, 1.0,
+            t -> ((TerrainSettings) t).getContinentalBias(),
+            "Shifts the balance between valleys and peaks in continental noise.",
+            "Positive values = more peaks than valleys. Negative = more valleys than peaks.",
+            "Measured splits: -0.05 = ~55% valleys, -0.15 = ~65% valleys, -0.30 = ~77% valleys."
+    );
+    public static final Setting<Double> BASE_HEIGHT_FRACTION = Settings.doubleSetting(
+            "BaseHeightFraction", 0.46875, 0.0, 1.0,
+            t -> ((TerrainSettings) t).getBaseHeightFraction(),
+            "Where the terrain surface sits as a fraction of world height when biome height is 0.",
+            "0.47 = surface roughly at half world height (default).",
+            "0.25 = low surface with lots of sky, 0.75 = high surface with deep underground."
+    );
+    public static final Setting<Double> BIOME_HEIGHT_WEIGHT = Settings.doubleSetting(
+            "BiomeHeightWeight", 0.125, 0.0, 1.0,
+            t -> ((TerrainSettings) t).getBiomeHeightWeight(),
+            "How much biome height config shifts the terrain surface.",
+            "0 = all biomes at same baseline, 0.125 = default.",
+            "Higher values create more dramatic height differences between biomes."
+    );
+    public static final Setting<Double> CONTINENTAL_HEIGHT_WEIGHT = Settings.doubleSetting(
+            "ContinentalHeightWeight", 0.25, 0.0, 1.0,
+            t -> ((TerrainSettings) t).getContinentalHeightWeight(),
+            "How much continental noise shifts the terrain surface.",
+            "0 = continental noise has no effect on surface position, 0.25 = default.",
+            "Higher values create larger-scale terrain undulation."
+    );
+    public static final Setting<Double> FALLOFF_STEEPNESS = Settings.doubleSetting(
+            "FalloffSteepness", 6.0, 0.1, 100.0,
+            t -> ((TerrainSettings) t).getFalloffSteepness(),
+            "Controls how sharply terrain transitions from solid to air.",
+            "Higher values = thinner transition zone = sharper terrain edges.",
+            "Lower values = thicker transition zone = smoother, more blobby terrain.",
+            "Default 6.0 produces ~80 block transition at default biome volatility (0.3)."
+    );
+    public static final Setting<Double> NOISE_AMPLITUDE = Settings.doubleSetting(
+            "NoiseAmplitude", 1.0, 0.0, 1000.0,
+            t -> ((TerrainSettings) t).getNoiseAmplitude(),
+            "Global multiplier for terrain noise contribution.",
+            "Scales the effect of Volatility1/Volatility2 from all biomes uniformly.",
+            "1.0 = noise at face value, higher = more chaotic terrain, 0 = falloff-only terrain."
+    );
 
     public static TerrainSettings getTerrainSettings(SettingsMap reader) {
         var builder = builder();
@@ -84,6 +141,13 @@ public class TerrainSettings extends ConfigSection {
         builder.waterLevelMax(reader.getSetting(WATER_LEVEL_MAX));
         builder.waterLevelMin(reader.getSetting(WATER_LEVEL_MIN));
         builder.carverLavaBlockHeight(reader.getSetting(CARVER_LAVA_BLOCK_HEIGHT));
+        builder.continentalScale(reader.getSetting(CONTINENTAL_SCALE));
+        builder.continentalBias(reader.getSetting(CONTINENTAL_BIAS));
+        builder.baseHeightFraction(reader.getSetting(BASE_HEIGHT_FRACTION));
+        builder.biomeHeightWeight(reader.getSetting(BIOME_HEIGHT_WEIGHT));
+        builder.continentalHeightWeight(reader.getSetting(CONTINENTAL_HEIGHT_WEIGHT));
+        builder.falloffSteepness(reader.getSetting(FALLOFF_STEEPNESS));
+        builder.noiseAmplitude(reader.getSetting(NOISE_AMPLITUDE));
 
         int configVersion = reader.getVersion();
         if (configVersion < 2) {
