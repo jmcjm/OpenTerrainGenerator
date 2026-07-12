@@ -6,17 +6,18 @@
 
 **2026-07-12**
 
-- **Edytor: bloki tintowane biomem nie renderują się już na biało w podglądach.**
-  `PreviewWorld.getBlockTint` zwracał -1 (biały), gdy chunk nie miał przypisanego biomu —
-  a podgląd terenu w BiomeEditorze i podgląd 3D w BO Store stawiają bloki bez danych
-  biomów, więc trawa, liście, woda i winorośle były białe. Nowa klasa `PreviewBiomes`
-  buduje tymczasowe, nierejestrowane biomy (`Holder.direct`), a `PreviewWorld.fillBiome`
-  wypełnia nimi wszystkie quarty załadowanych chunków. Podgląd terenu składa biom
-  z edytowanych propsów (`BiomeTemperature`, `BiomeWetness`, `FoliageColor`, `GrassColor`,
-  `WaterColor`, `WaterFogColor`, `FogColor`, `SkyColor`, `GrassColorModifier`) z semantyką
-  jak w `BiomeFactory`: kolor `0xFFFFFF` = użyj koloru wyliczonego z klimatu vanilla.
-  Podgląd BO dostaje neutralny las umiarkowany, bo obiekty BO nie niosą biomu. Pełny
-  world preview bez zmian — biomy bierze z `addChunkFromAccess`.
+- **Editor: biome-tinted blocks no longer render white in previews.**
+  `PreviewWorld.getBlockTint` returned -1 (white) when a chunk had no biome assigned —
+  and the terrain preview in the BiomeEditor and the 3D preview in the BO Store place
+  blocks without biome data, so grass, leaves, water and vines rendered white. New
+  `PreviewBiomes` class builds transient, unregistered biomes (`Holder.direct`), and
+  `PreviewWorld.fillBiome` fills every quart of the loaded chunks with them. The terrain
+  preview assembles the biome from the edited properties (`BiomeTemperature`,
+  `BiomeWetness`, `FoliageColor`, `GrassColor`, `WaterColor`, `WaterFogColor`, `FogColor`,
+  `SkyColor`, `GrassColorModifier`) with the same semantics as `BiomeFactory`: colour
+  `0xFFFFFF` = use the vanilla climate-derived colour. The BO preview gets a neutral
+  temperate forest, since BO objects carry no biome. The full world preview is unchanged —
+  it takes biomes from `addChunkFromAccess`.
 
 ### Release: 0.6.0-dev2
 
@@ -24,17 +25,18 @@
 
 **2026-06-30**
 
-- **Edytor: nowy DimensionPreset z szablonu DefaultPreset nie jest już cicho gubiony.**
-  Szablon DefaultPreset niesie legacy klucz `ShortPresetName: otg_default`, a kreator
-  patchował tylko `RegistryName` (doklejał na końcu pliku). Loader renamuje `ShortPresetName`
-  → `RegistryName` przy wczytaniu (`DimensionPresetConfig.renameOldSettings`), nadpisując
-  doklejoną wartość → każdy nowy preset rozwiązywał się do `otg_default`, kolidował z
-  DefaultPreset i był ignorowany w `loadDimensionPresetsFromDisk` (widoczny tylko jako
-  szablon w kreatorze, którego lista skanuje dysk). `patchIniSettings` rozpoznaje teraz
-  legacy aliasy (`LEGACY_KEY_ALIASES`) i podmienia linię w miejscu zamiast doklejać duplikat
-  — naprawia ścieżkę kreatora i Clone. Poprzedni fix walidacji RegistryName (dev1) był
-  niepełny: sprawdzał wartość z pola GUI, nie tę, którą config przyjmie po skopiowaniu
-  szablonu z legacy aliasem.
+- **Editor: new DimensionPresets created from the DefaultPreset template are no longer
+  silently dropped.** The DefaultPreset template carries the legacy key
+  `ShortPresetName: otg_default`, and the wizard only patched `RegistryName` (appended at
+  the end of the file). The loader renames `ShortPresetName` → `RegistryName` on read
+  (`DimensionPresetConfig.renameOldSettings`), overriding the appended value → every new
+  preset resolved to `otg_default`, collided with DefaultPreset and was ignored in
+  `loadDimensionPresetsFromDisk` (visible only as a template in the wizard, whose list
+  scans the disk). `patchIniSettings` now recognises legacy aliases (`LEGACY_KEY_ALIASES`)
+  and rewrites the line in place instead of appending a duplicate — fixes both the wizard
+  and Clone paths. The earlier RegistryName validation fix (dev1) was incomplete: it
+  checked the value from the GUI field, not the one the config would resolve to after
+  copying a template with a legacy alias.
 
 ### Release: 0.6.0-dev1
 
@@ -42,29 +44,29 @@
 
 **2026-06-29**
 
-- **Edytor: nowy DimensionPreset widoczny od razu, bez restartu gry.** Po stworzeniu
-  presetu kreatorem (`DimensionPresetWizardScreen`) `PresetReloader.reload()` już
-  aktualizował listę w pamięci, ale przepływ nawigacji nigdy nie wracał na ekran listy:
-  kreator otwierał `WorldSettingsScreen`, a jego „Back" prowadził do `EditorHubScreen`,
-  więc user nie widział nowego presetu i błędnie zakładał, że trzeba zrestartować grę.
-  `WorldSettingsScreen` dostał opcjonalny `returnTo` — przy tworzeniu z kreatora „Back"
-  wraca teraz na odświeżony `ManageDimensionPresetsScreen` z zaznaczonym nowym presetem
-  (`selectByFolder`). Pozostałe wejścia (EditorHub, edycja z listy) bez zmian — fallback
-  do EditorHub.
-- **Edytor: koniec cichego gubienia presetów przez duplikat RegistryName.**
-  `loadDimensionPresetsFromDisk()` po cichu odrzuca preset, którego RegistryName już
-  istnieje (mapa aliasów jest kluczowana po nim). Kreator walidował tylko FolderName
-  i DisplayName, więc dało się stworzyć „cichego trupa". Dodano walidację RegistryName
-  w `DimensionPresetWizardScreen` (komunikat błędu + blokada „Next/Finish"). Ścieżka
-  Clone (która dwukrotnym klonowaniem tego samego presetu generowała identyczny
-  RegistryName) używa teraz `resolveUniqueRegistryName` — dokleja `_1`, `_2`… przy
-  kolizji, analogicznie do unikalności nazwy folderu.
-- **Edytor: RegistryName zawsze normalizowany do poprawnego MC id.** Ręcznie wpisany
-  RegistryName (spacje, wielkie litery, znaki specjalne) był zapisywany dosłownie,
-  dając nieprawidłowy resource id. `effectiveRegistryName()` przepuszcza teraz wejście
-  przez `normalizeId` (z fallbackiem na nazwę folderu, gdy znormalizuje się do pustego),
-  ekran potwierdzenia pokazuje finalną wartość, a krok metadanych podgląda
-  „RegistryName saved as: …", gdy wpisana wartość zostanie wyczyszczona.
+- **Editor: new DimensionPreset visible immediately, no game restart needed.** After
+  creating a preset with the wizard (`DimensionPresetWizardScreen`),
+  `PresetReloader.reload()` already updated the in-memory list, but the navigation flow
+  never returned to the list screen: the wizard opened `WorldSettingsScreen`, whose
+  "Back" led to `EditorHubScreen`, so the user never saw the new preset and wrongly
+  assumed a game restart was required. `WorldSettingsScreen` got an optional `returnTo` —
+  when creating from the wizard, "Back" now returns to a refreshed
+  `ManageDimensionPresetsScreen` with the new preset selected (`selectByFolder`). Other
+  entry points (EditorHub, editing from the list) are unchanged — fallback to EditorHub.
+- **Editor: no more silently dropping presets over a duplicate RegistryName.**
+  `loadDimensionPresetsFromDisk()` silently rejects a preset whose RegistryName already
+  exists (the alias map is keyed on it). The wizard only validated FolderName and
+  DisplayName, so it was possible to create a "silent corpse". Added RegistryName
+  validation in `DimensionPresetWizardScreen` (error message + "Next/Finish" blocked).
+  The Clone path (which generated an identical RegistryName when cloning the same preset
+  twice) now uses `resolveUniqueRegistryName` — appends `_1`, `_2`… on collision,
+  analogous to folder name uniqueness.
+- **Editor: RegistryName always normalised to a valid MC id.** A manually entered
+  RegistryName (spaces, uppercase, special characters) was saved verbatim, producing an
+  invalid resource id. `effectiveRegistryName()` now passes the input through
+  `normalizeId` (falling back to the folder name when it normalises to empty), the
+  confirmation screen shows the final value, and the metadata step previews
+  "RegistryName saved as: …" when the entered value gets cleaned up.
 
 **2026-06-20**
 
@@ -77,44 +79,44 @@
   thread-local. With all scales at 1.0 the carve graph falls back to constant scaling
   (`hasUndergroundCaveScaling` guard) — output is identical to before.
 
-**2026-06-17 — Przeprojektowanie biomów podziemnych 3D (prawdziwe regiony 3D + pełna kontrola OTG)**
+**2026-06-17 — 3D underground biomes redesign (true 3D regions + full OTG control)**
 
-- **Rozmieszczanie szumem 3D**: biomy podziemne tworzą organiczne, spójne regiony 3D zamiast siatki 64×64. Nowa klasa `UndergroundRegionNoise` (3D Perlin, seed per biom) + ustawienia `UndergroundRegionSize` (wielkość blobów) i `UndergroundVerticalScale` (rozciągnięcie w pionie).
-- **`UndergroundBiomeRarity` → pokrycie %**: reinterpretacja jako ułamek objętości. Mapowanie zlinearyzowane empiryczną kwantylą rozkładu szumu (`coverage 20` ≈ realnie 20% objętości), bo surowy Perlin kumuluje się koło 0.5.
-- **Niezależność od powierzchni**: placement steruje szum 3D + głębokość; `MinSurfaceTemperature/Wetness` zostają jako opcjonalny miękki filtr (domyślnie pełny zakres = brak sprzężenia). Płynne wyciszenie blisko powierzchni zamiast twardego cięcia.
-- **Usunięty cheese-air gate**: biom zajmuje całą komórkę 3D regionu (nie tylko powietrze), więc vanilla `applyBiomeDecoration` wypełnia regiony feature'ami (mech/dripstone/sculk) — naprawia "małe losowe płaty".
-- **Pełna kontrola OTG (Level 2)**:
-  - `OTGChunkGenerator.populateNoise` konwertuje `StoneBlock` per biom podziemny w całym regionie (kształt terenu bez zmian) — mapa `UndergroundBiomeMap` (quart res) liczona raz na chunk.
-  - Kolejki resource OTG (`Ore`/`Liquid`/`Dungeon`/…) biomów podziemnych wykonują się **zmaskowane do regionu** (`IWorldGenRegion.begin/endUndergroundBiomeMask` + guard na `setBlock`). Resource na granicy regionu mogą być przycięte (strategia C1).
-- **Spójność seeda**: resolver biome source przebudowywany w `setSeed`, żeby F3/vanilla feature'y zgadzały się z konwersją bloków i resource OTG.
-- **DefaultPreset**: lush/dripstone/deep_dark odsprzężone i dostrojone; `MinorVersion` 0.1→0.2 wymusza ponowne wypakowanie presetu u istniejących userów.
+- **3D noise placement**: underground biomes form organic, coherent 3D regions instead of a 64×64 grid. New `UndergroundRegionNoise` class (3D Perlin, per-biome seed) + settings `UndergroundRegionSize` (blob size) and `UndergroundVerticalScale` (vertical stretch).
+- **`UndergroundBiomeRarity` → coverage %**: reinterpreted as a volume fraction. The mapping is linearised with an empirical quantile of the noise distribution (`coverage 20` ≈ actually 20% of volume), since raw Perlin clusters around 0.5.
+- **Surface independence**: placement is driven by 3D noise + depth; `MinSurfaceTemperature/Wetness` remain as an optional soft filter (full range by default = no coupling). Smooth fade-out near the surface instead of a hard cutoff.
+- **Cheese-air gate removed**: a biome occupies the entire 3D region cell (not just air), so vanilla `applyBiomeDecoration` fills regions with features (moss/dripstone/sculk) — fixes the "small random patches" problem.
+- **Full OTG control (Level 2)**:
+  - `OTGChunkGenerator.populateNoise` converts `StoneBlock` per underground biome across the whole region (terrain shape unchanged) — an `UndergroundBiomeMap` (quart resolution) computed once per chunk.
+  - OTG resource queues (`Ore`/`Liquid`/`Dungeon`/…) of underground biomes execute **masked to the region** (`IWorldGenRegion.begin/endUndergroundBiomeMask` + a guard on `setBlock`). Resources at region borders may be clipped (strategy C1).
+- **Seed consistency**: the biome source resolver is rebuilt in `setSeed` so F3/vanilla features agree with block conversion and OTG resources.
+- **DefaultPreset**: lush/dripstone/deep_dark decoupled and tuned; `MinorVersion` 0.1→0.2 forces re-extraction of the preset for existing users.
 
-**2026-05-15 — Fix drzew w nowych biomach**
+**2026-05-15 — Tree fix in the new biomes**
 
-- `Registry(minecraft:trees_*)` zamienione na natywne `Tree()` syntax — pewniejsze mapowanie przez `TreeType` enum
+- `Registry(minecraft:trees_*)` replaced with native `Tree()` syntax — more reliable mapping via the `TreeType` enum
 - Cherry Grove: `Tree(10,Cherry,100)` (TreeFeatures.CHERRY)
 - Mangrove Swamp: `Tree(8,TallMangrove,30,Mangrove,100)` (TreeFeatures.TALL_MANGROVE / MANGROVE)
 - Grove: `Tree(10,Taiga2,80,Taiga1,100)` (spruce + pine)
-- Meadow: `Tree(1,Tree,30,Birch,100)` (rzadki oak + birch)
-- Flower features (`flower_meadow`, `flower_cherry`) zostawione jako `Registry()` — brak natywnego OTG mappingu
+- Meadow: `Tree(1,Tree,30,Birch,100)` (rare oak + birch)
+- Flower features (`flower_meadow`, `flower_cherry`) left as `Registry()` — no native OTG mapping
 
-**2026-05-15 — Fix BiomeHeight nowych biomów**
+**2026-05-15 — BiomeHeight fix for the new biomes**
 
-- Wartości BiomeHeight 7.0/7.5 dla Frozen/Jagged Peaks generowały biomy poza build limitem — odwzorowane były z konwencji Biome Bundle, nie DefaultPreset
-- Skala DefaultPreset: Plains 0.25 / Hills 0.45 / Mountain Edge 0.8 / Mountains 1.0 (cap)
-- Nowe wartości: Meadow 0.5, Grove 0.5, Cherry Grove 0.6, Snowy Slopes 1.3, Stony Peaks 1.5, Frozen Peaks 1.8, Jagged Peaks 2.0
-- BiomeVolatility też okrojone: Jagged Peaks z 0.7 na 0.6, reszta dopasowana do biomów hills/mountains z istniejącego presetu
+- BiomeHeight values 7.0/7.5 for Frozen/Jagged Peaks generated biomes above the build limit — they were copied from Biome Bundle conventions, not DefaultPreset's
+- DefaultPreset scale: Plains 0.25 / Hills 0.45 / Mountain Edge 0.8 / Mountains 1.0 (cap)
+- New values: Meadow 0.5, Grove 0.5, Cherry Grove 0.6, Snowy Slopes 1.3, Stony Peaks 1.5, Frozen Peaks 1.8, Jagged Peaks 2.0
+- BiomeVolatility trimmed too: Jagged Peaks from 0.7 to 0.6, the rest matched to the hills/mountains biomes of the existing preset
 
-**2026-05-15 — DefaultPreset: 8 nowych waniliowych biomów (1.18-1.20)**
+**2026-05-15 — DefaultPreset: 8 new vanilla biomes (1.18-1.20)**
 
-- **Biomy 1.18 mountains**: Meadow, Grove, Snowy Slopes, Frozen Peaks, Jagged Peaks, Stony Peaks
-- **Biome 1.19**: Mangrove Swamp (mud ground, swamp grass modifier, foliage 0x8DB127, water 0x3A7A6A)
-- **Biome 1.20**: Cherry Grove (grass+foliage 0xB6DB61, water 0x5DB7EF, pink_petals)
-- **BiomeGroups**: dodane do NormalBiomes (Meadow, Cherry Grove, Mangrove Swamp), ColdBiomes (Grove), HotBiomes (Stony Peaks), IceBiomes (Snowy Slopes)
-- **IsleBiomes**: Frozen Peaks i Jagged Peaks jako wyspy w Snowy Slopes (rarity 80)
-- **Surface bloki specjalne**: Stony Peaks → stone, Frozen Peaks → packed_ice, Snowy Slopes/Jagged Peaks → snow_block over stone, Grove → snow_block, Mangrove Swamp → grass_block over mud
+- **1.18 mountain biomes**: Meadow, Grove, Snowy Slopes, Frozen Peaks, Jagged Peaks, Stony Peaks
+- **1.19 biome**: Mangrove Swamp (mud ground, swamp grass modifier, foliage 0x8DB127, water 0x3A7A6A)
+- **1.20 biome**: Cherry Grove (grass+foliage 0xB6DB61, water 0x5DB7EF, pink_petals)
+- **BiomeGroups**: added to NormalBiomes (Meadow, Cherry Grove, Mangrove Swamp), ColdBiomes (Grove), HotBiomes (Stony Peaks), IceBiomes (Snowy Slopes)
+- **IsleBiomes**: Frozen Peaks and Jagged Peaks as isles inside Snowy Slopes (rarity 80)
+- **Special surface blocks**: Stony Peaks → stone, Frozen Peaks → packed_ice, Snowy Slopes/Jagged Peaks → snow_block over stone, Grove → snow_block, Mangrove Swamp → grass_block over mud
 - **Vegetation via vanilla feature Registry**: trees_meadow/flower_meadow, trees_grove, trees_mangrove/mangrove_vegetation/seagrass_swamp, trees_cherry_grove/flower_cherry
-- Music tracks i mob spawning dziedziczone przez InheritMobsBiomeName z odpowiednich vanilla ID
+- Music tracks and mob spawning inherited via InheritMobsBiomeName from the matching vanilla IDs
 
 **2026-05-15 — In-game editor: DimensionPreset creation**
 
