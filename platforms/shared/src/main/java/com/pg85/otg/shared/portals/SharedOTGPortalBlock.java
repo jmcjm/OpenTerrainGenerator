@@ -98,18 +98,17 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
     private ServerLevel findDestination(Entity entity, ServerLevel currentLevel) {
         MinecraftServer server = currentLevel.getServer();
 
-        if (currentLevel.dimension() == Level.OVERWORLD) {
-            return findOTGDimensionByColor(server, this.portalColor);
-        }
-
-        if (currentLevel.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator) {
-            String dimColor = getPortalColorOfLevel(currentLevel);
-            if (this.portalColor.equals(dimColor)) {
+        if (currentLevel.dimension() != Level.OVERWORLD) {
+            // A portal of the dimension's own color leads back to the overworld,
+            // and so does a portal whose color belongs to the overworld's preset.
+            if (this.portalColor.equals(getPortalColorOfLevel(currentLevel))
+                    || this.portalColor.equals(getPortalColorOfLevel(server.overworld()))) {
                 return server.overworld();
             }
         }
 
-        return null;
+        ServerLevel target = findOTGDimensionByColor(server, this.portalColor);
+        return target == currentLevel ? server.overworld() : target;
     }
 
     private ServerLevel findOTGDimensionByColor(MinecraftServer server, String targetColor) {
@@ -171,13 +170,12 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
         }
     }
 
-    /** Portal color of the preset generating this level, or "default" for non-OTG levels. */
+    /** Effective portal color of the preset generating this level, or "default" for non-OTG levels. */
     private String getPortalColorOfLevel(ServerLevel level) {
         if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
             Preset preset = gen.getPreset();
-            if (preset != null && preset.getPresetConfig() != null
-                    && preset.getPresetConfig().getPortalSettings() != null) {
-                return DimensionNameUtils.normalizeColor(preset.getPresetConfig().getPortalSettings().getPortalColor());
+            if (preset != null) {
+                return PortalConfigLookup.effectiveColorOf(preset.getFolderName());
             }
         }
         return "default";

@@ -1,11 +1,9 @@
 package com.pg85.otg.shared.portals;
 
 import com.pg85.otg.OTG;
-import com.pg85.otg.config.settings.preset.PortalColors;
 import com.pg85.otg.config.settings.preset.PortalSettings;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.presets.Preset;
-import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,7 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 public final class SharedPortalIgnitionHandler {
@@ -82,30 +79,17 @@ public final class SharedPortalIgnitionHandler {
 
     private static List<PortalConfig> getPortalConfigs(ServerLevel level) {
         List<PortalConfig> configs = new ArrayList<>();
-        List<String> usedColors = new ArrayList<>();
 
-        List<Preset> presets = new ArrayList<>(OTG.getEngine().getPresetLoader().getAllPresets());
-        presets.sort(Comparator.comparing(Preset::getFolderName));
-
-        for (Preset preset : presets) {
-            if (preset.getPresetConfig() == null) continue;
+        for (var entry : PortalConfigLookup.effectiveColorByPreset().entrySet()) {
+            Preset preset = OTG.getEngine().getPresetLoader().getPresetByFolderName(entry.getKey());
+            if (preset == null || preset.getPresetConfig() == null) continue;
 
             PortalSettings portalSettings = preset.getPresetConfig().getPortalSettings();
             if (portalSettings == null) continue;
 
             List<LocalMaterialData> frameBlocks = portalSettings.getPortalBlocks();
             String ignitionSource = portalSettings.getPortalIgnitionSource();
-            String rawColor = portalSettings.getPortalColor();
-
-            if (frameBlocks == null || frameBlocks.isEmpty()) {
-                continue;
-            }
-
-            String color = DimensionNameUtils.normalizeColor(rawColor);
-            while (usedColors.contains(color)) {
-                color = PortalColors.getNextColor(color);
-            }
-            usedColors.add(color);
+            String color = entry.getValue();
 
             configs.add(new PortalConfig(
                     preset.getFolderName(),
