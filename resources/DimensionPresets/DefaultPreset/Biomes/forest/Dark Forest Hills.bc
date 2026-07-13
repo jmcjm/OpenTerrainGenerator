@@ -1,3 +1,4 @@
+ConfigVersion: 3
 
 #######################################################################
 # +-----------------------------------------------------------------+ #
@@ -62,13 +63,13 @@ SmoothRadius: 8
 
 CustomHeightControlSmoothRadius: 2
 
-MaxAverageHeight: 0.0
+PeakFactor: 1.0
 
-MaxAverageDepth: 0.0
+ValleyFactor: 1.0
 
-Volatility1: 0.0
+Volatility1: 1.0
 
-Volatility2: 0.0
+Volatility2: 1.0
 
 VolatilityWeight1: 48.0
 
