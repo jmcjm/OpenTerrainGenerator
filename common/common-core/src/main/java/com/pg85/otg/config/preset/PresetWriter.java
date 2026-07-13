@@ -586,7 +586,7 @@ public class PresetWriter {
                 "When FixedSpawnPoint: true, this sets the angle the player is looking when spawned at the spawn point."
         );
 
-        writer.header2("Portal settings (Forge)");
+        writer.header2("Portal settings");
 
         writer.putSetting(PortalSettings.PORTAL_BLOCKS, presetConfig.getPortalSettings().getPortalBlocks(),
                 "A list of one or more portal blocks used to build a portal to this dimension, or back to the overworld.",
@@ -622,7 +622,7 @@ public class PresetWriter {
 
         presetConfig.getDimensionSettings().writeSettings(writer);
 
-        writer.header1("Game rules (Forge)",
+        writer.header1("Game rules",
                 "See: https://minecraft.fandom.com/wiki/Game_rule",
                 "Since game rules are shared across all dimensions, these settings only apply if this preset is used as the overworld.",
                 "These settings can be overridden via a DimensionConfig with a GameRules entry."
