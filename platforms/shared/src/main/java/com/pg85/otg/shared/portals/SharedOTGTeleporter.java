@@ -47,12 +47,40 @@ public class SharedOTGTeleporter {
                 (int)border.getMinZ() + 16, (int)border.getMaxZ() - 16);
         BlockPos searchPos = new BlockPos(destX, sourcePos.getY(), destZ);
 
+        // Registered portals first: every portal is created via ignition or by this
+        // teleporter, so the registry normally knows the portal the player came from.
+        Optional<BlockPos> registered = findRegisteredPortal(destination, searchPos, portalColor);
+        if (registered.isPresent()) {
+            return registered.get();
+        }
+
         Optional<BlockPos> existingPortal = findExistingPortal(destination, searchPos, portalColor);
         if (existingPortal.isPresent()) {
             return existingPortal.get();
         }
 
         return createPortal(destination, searchPos, portalColor);
+    }
+
+    private static Optional<BlockPos> findRegisteredPortal(ServerLevel level, BlockPos searchPos, String portalColor) {
+        SharedOTGPortalBlock targetBlock = SharedOTGPortalBlock.lookupPortalBlock(portalColor);
+        if (targetBlock == null) return Optional.empty();
+
+        BlockPos best = null;
+        double bestDistSq = Double.MAX_VALUE;
+        for (BlockPos pos : SharedPortalRegistry.get(level.dimension(), portalColor)) {
+            if (level.getBlockState(pos).getBlock() != targetBlock) {
+                // Portal was broken - forget it
+                SharedPortalRegistry.unregister(level.dimension(), portalColor, pos);
+                continue;
+            }
+            double distSq = pos.distSqr(searchPos);
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = pos;
+            }
+        }
+        return Optional.ofNullable(best);
     }
 
     private static Optional<BlockPos> findExistingPortal(ServerLevel level, BlockPos searchPos, String portalColor) {
@@ -121,6 +149,7 @@ public class SharedOTGTeleporter {
             }
         }
 
+        SharedPortalRegistry.register(level.dimension(), portalColor, portalPos.above());
         return portalPos.above();
     }
 

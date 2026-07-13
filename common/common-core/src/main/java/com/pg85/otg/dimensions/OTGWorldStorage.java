@@ -29,6 +29,9 @@ public class OTGWorldStorage {
 
         @JsonProperty("gameRules")
         private Map<String, Map<String, Object>> gameRules = new LinkedHashMap<>();
+
+        @JsonProperty("portals")
+        private Map<String, List<String>> portals = new LinkedHashMap<>();
     }
 
     private final Path worldPath;
@@ -153,5 +156,16 @@ public class OTGWorldStorage {
         if (data.getGameRules().remove(dimensionKey) != null) {
             save();
         }
+    }
+
+    // --- Portal registry ---
+
+    public Map<String, List<String>> getPortals() {
+        return data.getPortals();
+    }
+
+    public void setPortals(Map<String, List<String>> portals) {
+        data.setPortals(new LinkedHashMap<>(portals));
+        save();
     }
 }

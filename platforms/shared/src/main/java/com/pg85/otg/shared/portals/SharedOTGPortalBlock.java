@@ -336,6 +336,10 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
                     }
                 }
             }
+
+            if (level instanceof Level realLevel) {
+                SharedPortalRegistry.register(realLevel.dimension(), portalColor, bottomLeft.immutable());
+            }
         }
     }
 }
