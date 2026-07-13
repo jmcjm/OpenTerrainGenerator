@@ -44,6 +44,17 @@ public final class SharedPortalConfigResolver {
     }
 
     public static BlockState getFrameBlock(ServerLevel level, String portalColor) {
+        // The frame of an auto-created portal matches the preset the color belongs to,
+        // so a portal leading to Biome Bundle is built from Biome Bundle's PortalBlocks
+        // regardless of which level it stands in.
+        Optional<BlockState> colorFrame = findSettingsByColor(portalColor)
+                .filter(s -> s.getPortalBlocks() != null && !s.getPortalBlocks().isEmpty()
+                        && s.getPortalBlocks().get(0) instanceof SharedMaterialData)
+                .map(s -> ((SharedMaterialData) s.getPortalBlocks().get(0)).getState());
+        if (colorFrame.isPresent()) {
+            return colorFrame.get();
+        }
+
         PortalSettings settings = getLevelPortalSettings(level);
         if (settings != null && settings.getPortalBlocks() != null && !settings.getPortalBlocks().isEmpty()
                 && settings.getPortalBlocks().get(0) instanceof SharedMaterialData blockMaterial) {
@@ -58,23 +69,21 @@ public final class SharedPortalConfigResolver {
     }
 
     public static int getPortalMinWidth(ServerLevel level, String portalColor) {
-        PortalSettings settings = getLevelPortalSettings(level);
-        if (settings != null) {
-            return Math.max(2, settings.getPortalMinWidth());
-        }
         return findSettingsByColor(portalColor)
                 .map(PortalConfigLookup::getPortalMinWidth)
-                .orElse(2);
+                .orElseGet(() -> {
+                    PortalSettings settings = getLevelPortalSettings(level);
+                    return settings != null ? Math.max(2, settings.getPortalMinWidth()) : 2;
+                });
     }
 
     public static int getPortalMinHeight(ServerLevel level, String portalColor) {
-        PortalSettings settings = getLevelPortalSettings(level);
-        if (settings != null) {
-            return Math.max(3, settings.getPortalMinHeight());
-        }
         return findSettingsByColor(portalColor)
                 .map(PortalConfigLookup::getPortalMinHeight)
-                .orElse(3);
+                .orElseGet(() -> {
+                    PortalSettings settings = getLevelPortalSettings(level);
+                    return settings != null ? Math.max(3, settings.getPortalMinHeight()) : 3;
+                });
     }
 
     /** Portal settings of the preset generating this level, or null for non-OTG levels. */

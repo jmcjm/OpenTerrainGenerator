@@ -91,18 +91,30 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
 
         if (destination != null && !entity.isPassenger()) {
             entity.setPortalCooldown();
-            SharedOTGTeleporter.teleport(entity, destination, this.portalColor);
+            // The destination-side portal is the return trip, so it carries the color
+            // of the level the entity is leaving - that way travelling back finds the
+            // portal the player originally came from.
+            String returnColor = getPortalColorOfLevel(serverLevel);
+            SharedOTGTeleporter.teleport(entity, destination, returnColor);
         }
     }
 
     private ServerLevel findDestination(Entity entity, ServerLevel currentLevel) {
         MinecraftServer server = currentLevel.getServer();
 
-        if (currentLevel.dimension() != Level.OVERWORLD) {
+        String overworldColor = getPortalColorOfLevel(server.overworld());
+
+        if (currentLevel.dimension() == Level.OVERWORLD) {
+            // A portal of the overworld preset's own color, standing in the overworld,
+            // leads nowhere - don't spawn a second dimension of the overworld's preset.
+            if (this.portalColor.equals(overworldColor)) {
+                return null;
+            }
+        } else {
             // A portal of the dimension's own color leads back to the overworld,
             // and so does a portal whose color belongs to the overworld's preset.
             if (this.portalColor.equals(getPortalColorOfLevel(currentLevel))
-                    || this.portalColor.equals(getPortalColorOfLevel(server.overworld()))) {
+                    || this.portalColor.equals(overworldColor)) {
                 return server.overworld();
             }
         }
