@@ -9,6 +9,8 @@ import com.pg85.otg.shared.dimensions.DimensionManager;
 import com.pg85.otg.shared.dimensions.SharedDimensionHelper;
 import com.pg85.otg.shared.gamerules.GameRuleApplier;
 import com.pg85.otg.shared.gamerules.GameRuleManager;
+import com.pg85.otg.shared.portals.SharedPortalBlocks;
+import com.pg85.otg.shared.portals.SharedPortalIgnitionHandler;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.shared.materials.SharedMaterialReader;
 import com.pg85.otg.shared.util.SharedLogger;
@@ -18,11 +20,14 @@ import com.pg85.otg.util.logging.LogCategory;
 import com.pg85.otg.util.logging.LogLevel;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -38,10 +43,14 @@ public class OTGPlugin {
             DeferredRegister.create(Registries.BIOME_SOURCE, Constants.MOD_ID_SHORT);
     private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GENERATORS =
             DeferredRegister.create(Registries.CHUNK_GENERATOR, Constants.MOD_ID_SHORT);
+    private static final DeferredRegister<Block> BLOCKS =
+            DeferredRegister.create(Registries.BLOCK, Constants.MOD_ID_SHORT);
 
     static {
         BIOME_SOURCES.register(Constants.MOD_ID_SHORT, () -> SharedOTGBiomeProvider.CODEC);
         CHUNK_GENERATORS.register(Constants.MOD_ID_SHORT, () -> SharedOTGChunkGenerator.CODEC);
+        SharedPortalBlocks.createBlocks().forEach((color, block) ->
+                BLOCKS.register("otg_portal_" + color, () -> block));
     }
 
     public OTGPlugin() {
@@ -53,11 +62,13 @@ public class OTGPlugin {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         BIOME_SOURCES.register(modEventBus);
         CHUNK_GENERATORS.register(modEventBus);
+        BLOCKS.register(modEventBus);
 
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(this::onLevelSave);
         MinecraftForge.EVENT_BUS.addListener(this::onServerStarted);
         MinecraftForge.EVENT_BUS.addListener(this::onServerStopped);
+        MinecraftForge.EVENT_BUS.addListener(this::onRightClickBlock);
 
         OTG.log("OTG Engine started, presets loaded");
     }
@@ -81,6 +92,15 @@ public class OTGPlugin {
             DimensionManager.setInstance(null);
         }
         GameRuleManager.clear();
+    }
+
+    private void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        InteractionResult result = SharedPortalIgnitionHandler.onUseBlock(
+                event.getEntity(), event.getLevel(), event.getHand(), event.getHitVec());
+        if (result == InteractionResult.SUCCESS) {
+            event.setCanceled(true);
+            event.setCancellationResult(result);
+        }
     }
 
     private void onLevelSave(LevelEvent.Save event) {

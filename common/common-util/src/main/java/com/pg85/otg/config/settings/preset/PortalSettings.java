@@ -19,6 +19,14 @@ public class PortalSettings extends ConfigSection {
     private final String portalColor;
     private final String portalMob;
     private final String portalIgnitionSource;
+    @Builder.Default
+    private final int portalMinWidth = 2;
+    @Builder.Default
+    private final int portalMaxWidth = 21;
+    @Builder.Default
+    private final int portalMinHeight = 3;
+    @Builder.Default
+    private final int portalMaxHeight = 21;
 
     public static final Setting<String> PORTAL_COLOR = Settings.stringSetting(
             "PortalColor", "Default",
@@ -45,6 +53,26 @@ public class PortalSettings extends ConfigSection {
             "A list of one or more portal blocks used to build a portal to this dimension, or back to the overworld.",
             "Only applies for dimensions, not overworld/nether/end."
     );
+    public static final Setting<Integer> PORTAL_MIN_WIDTH = Settings.intSetting(
+            "PortalMinWidth", 2, 1, 21,
+            t -> ((PortalSettings) t).getPortalMinWidth(),
+            "Minimum portal width (interior). Default: 2, vanilla nether portal minimum."
+    );
+    public static final Setting<Integer> PORTAL_MAX_WIDTH = Settings.intSetting(
+            "PortalMaxWidth", 21, 2, 64,
+            t -> ((PortalSettings) t).getPortalMaxWidth(),
+            "Maximum portal width (interior). Default: 21, vanilla nether portal maximum."
+    );
+    public static final Setting<Integer> PORTAL_MIN_HEIGHT = Settings.intSetting(
+            "PortalMinHeight", 3, 2, 21,
+            t -> ((PortalSettings) t).getPortalMinHeight(),
+            "Minimum portal height (interior). Default: 3, vanilla nether portal minimum."
+    );
+    public static final Setting<Integer> PORTAL_MAX_HEIGHT = Settings.intSetting(
+            "PortalMaxHeight", 21, 3, 64,
+            t -> ((PortalSettings) t).getPortalMaxHeight(),
+            "Maximum portal height (interior). Default: 21, vanilla nether portal maximum."
+    );
 
     public static PortalSettings getPortalSettings(SettingsMap reader) {
         var portalSettingsBuilder = builder();
@@ -53,6 +81,10 @@ public class PortalSettings extends ConfigSection {
         portalSettingsBuilder.portalColor(reader.getSetting(PORTAL_COLOR));
         portalSettingsBuilder.portalMob(reader.getSetting(PORTAL_MOB));
         portalSettingsBuilder.portalIgnitionSource(reader.getSetting(PORTAL_IGNITION_SOURCE));
+        portalSettingsBuilder.portalMinWidth(reader.getSetting(PORTAL_MIN_WIDTH));
+        portalSettingsBuilder.portalMaxWidth(reader.getSetting(PORTAL_MAX_WIDTH));
+        portalSettingsBuilder.portalMinHeight(reader.getSetting(PORTAL_MIN_HEIGHT));
+        portalSettingsBuilder.portalMaxHeight(reader.getSetting(PORTAL_MAX_HEIGHT));
 
         return portalSettingsBuilder.build();
     }

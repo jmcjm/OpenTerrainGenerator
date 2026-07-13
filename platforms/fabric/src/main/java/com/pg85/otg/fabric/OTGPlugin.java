@@ -4,10 +4,13 @@ import com.pg85.otg.OTG;
 import com.pg85.otg.shared.commands.OTGCommand;
 import com.pg85.otg.fabric.events.WorldSaveCallback;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
+import com.pg85.otg.constants.Constants;
 import com.pg85.otg.shared.dimensions.DimensionManager;
 import com.pg85.otg.shared.dimensions.SharedDimensionHelper;
 import com.pg85.otg.shared.gamerules.GameRuleApplier;
 import com.pg85.otg.shared.gamerules.GameRuleManager;
+import com.pg85.otg.shared.portals.SharedPortalBlocks;
+import com.pg85.otg.shared.portals.SharedPortalIgnitionHandler;
 import com.pg85.otg.shared.materials.SharedMaterialReader;
 import com.pg85.otg.shared.util.SharedLogger;
 import com.pg85.otg.util.OTGLog;
@@ -17,6 +20,10 @@ import com.pg85.otg.util.logging.LogLevel;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 
 @SuppressWarnings("unused")
@@ -31,11 +38,19 @@ public class OTGPlugin implements ModInitializer {
 		OTGMaterialReader.set(new SharedMaterialReader());
 		OTG.startEngine(new FabricEngine());
 
+		registerPortalBlocks();
 		registerWorldSave();
 		registerCommands();
 		registerServerEvents();
 
 		OTG.log("OTG Engine started, presets loaded");
+	}
+
+	void registerPortalBlocks() {
+		SharedPortalBlocks.createBlocks().forEach((color, block) ->
+				Registry.register(BuiltInRegistries.BLOCK,
+						new ResourceLocation(Constants.MOD_ID_SHORT, "otg_portal_" + color), block));
+		UseBlockCallback.EVENT.register(SharedPortalIgnitionHandler::onUseBlock);
 	}
 
 	void registerCommands() {

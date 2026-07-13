@@ -605,6 +605,18 @@ public class PresetWriter {
                 "The ignition source for this portal, minecraft:flint_and_steel by default.",
                 "Only applies for dimensions, not overworld/nether/end."
         );
+        writer.putSetting(PortalSettings.PORTAL_MIN_WIDTH, presetConfig.getPortalSettings().getPortalMinWidth(),
+                "Minimum portal width (interior). Default: 2, vanilla nether portal minimum."
+        );
+        writer.putSetting(PortalSettings.PORTAL_MAX_WIDTH, presetConfig.getPortalSettings().getPortalMaxWidth(),
+                "Maximum portal width (interior). Default: 21, vanilla nether portal maximum."
+        );
+        writer.putSetting(PortalSettings.PORTAL_MIN_HEIGHT, presetConfig.getPortalSettings().getPortalMinHeight(),
+                "Minimum portal height (interior). Default: 3, vanilla nether portal minimum."
+        );
+        writer.putSetting(PortalSettings.PORTAL_MAX_HEIGHT, presetConfig.getPortalSettings().getPortalMaxHeight(),
+                "Maximum portal height (interior). Default: 21, vanilla nether portal maximum."
+        );
 
         writer.header1("Dimension settings");
 
