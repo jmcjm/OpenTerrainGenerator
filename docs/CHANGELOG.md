@@ -1,5 +1,18 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-14**
+
+- **Fixed: production Fabric jar crashed on startup with `InvalidAccessorException`.**
+  The shared-module mixin configs (`otg-shared.mixins.json`,
+  `otg-shared-client.mixins.json`) shipped without a `refmap` entry — Loom only
+  injects one into the platform module's own config — so in the production jar
+  (intermediary runtime) mixins resolved members by their mojmap names and died
+  on the first accessor (`MappedRegistryAccessor#isFrozen`). The Fabric build now
+  injects the refmap references while assembling the jar. NeoForge is untouched:
+  its mojmap runtime needs no refmap, and referencing the intermediary refmaps
+  there would cause the same crash in reverse. Dev runs were never affected.
+  Verified on a production Fabric 1.21.1 server generating an OTG world.
+
 **2026-07-13**
 
 - **Continental terrain noise, on by default.** A new large-scale continental

@@ -1,3 +1,6 @@
+import java.nio.file.FileSystems
+import java.nio.file.Files
+
 plugins {
     id("platform-conventions")
     id("com.gradleup.shadow")
@@ -81,6 +84,34 @@ tasks {
         exclude("architectury.common.json")
         configurations = listOf(otg)
         archiveClassifier.set("deobf-all")
+
+        // Loom's remapJar injects the refmap key only into this module's own mixin
+        // config; the shared module's configs pass through without one, so in the
+        // production jar (intermediary runtime) mixin resolves members by their
+        // named (mojmap) names and crashes on the first accessor. The refmap files
+        // themselves are already in the jar — reference them explicitly here.
+        // Fabric-only: on NeoForge the runtime is mojmap, named resolution is
+        // correct there and these intermediary refmaps must NOT be referenced.
+        doLast {
+            val sharedRefmaps = mapOf(
+                "otg-shared.mixins.json" to "shared-platforms_shared-refmap.json",
+                "otg-shared-client.mixins.json" to "client-shared-platforms_shared-refmap.json",
+            )
+            FileSystems.newFileSystem(archiveFile.get().asFile.toPath()).use { fs ->
+                sharedRefmaps.forEach { (config, refmap) ->
+                    val path = fs.getPath(config)
+                    if (Files.exists(path)) {
+                        val json = Files.readString(path)
+                        if (!json.contains("\"refmap\"")) {
+                            Files.writeString(
+                                path,
+                                json.replaceFirst("{", "{\n  \"refmap\": \"$refmap\","),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     remapJar {
