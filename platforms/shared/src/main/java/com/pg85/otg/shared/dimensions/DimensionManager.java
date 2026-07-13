@@ -57,7 +57,8 @@ public class DimensionManager {
             Preset preset = OTG.getEngine().getPresetLoader().getPresetByFolderName(info.getPreset());
             if (preset != null) {
                 try {
-                    datapack.createDimensionFiles(info, preset.getPresetConfig().getDimensionSettings());
+                    datapack.createDimensionFiles(info, preset.getPresetConfig().getDimensionSettings(),
+                            preset.getPresetRegistryName().toLowerCase(java.util.Locale.ROOT));
                 } catch (Exception e) {
                     OTGLog.error("Failed to regenerate datapack for %s: %s", info.getName(), e.getMessage());
                 }
@@ -65,6 +66,8 @@ public class DimensionManager {
                 OTGLog.warn("Preset %s not found for dimension %s", info.getPreset(), info.getName());
             }
         }
+
+        com.pg85.otg.shared.portals.SharedPortalRegistry.load(storage.getPortals());
 
         // Restore persisted GameRules for the created dimensions
         for (var entry : storage.getAllGameRules().entrySet()) {
@@ -101,8 +104,17 @@ public class DimensionManager {
         long seed = new Random().nextLong();
         DimensionInfo info = DimensionInfo.create(presetName, seed);
 
+        // A previous dimension of the same name may have been deleted without --purge;
+        // silently adopting its region files under a new seed would produce seams.
         try {
-            datapack.createDimensionFiles(info, preset.getPresetConfig().getDimensionSettings());
+            helper.purgeWorldData(server, normalizedName);
+        } catch (Exception e) {
+            OTGLog.warn("Could not clean up stale world data for %s: %s", normalizedName, e.getMessage());
+        }
+
+        try {
+            datapack.createDimensionFiles(info, preset.getPresetConfig().getDimensionSettings(),
+                    preset.getPresetRegistryName().toLowerCase(java.util.Locale.ROOT));
             storage.addDimension(info);
 
             GameRuleSettings gameRuleSettings = preset.getPresetConfig().getGameRuleSettings();
@@ -152,6 +164,7 @@ public class DimensionManager {
             storage.removeDimension(normalizedName);
             GameRuleManager.unregister(DimensionKeys.otg(normalizedName));
             storage.removeGameRules("otg:" + normalizedName);
+            com.pg85.otg.shared.portals.SharedPortalRegistry.removeLevel(DimensionKeys.otg(normalizedName));
 
             if (purge) {
                 helper.purgeWorldData(server, normalizedName);
@@ -193,10 +206,17 @@ public class DimensionManager {
     }
 
     public void shutdown() {
+        com.pg85.otg.shared.portals.SharedPortalRegistry.clear();
     }
 
     public PlatformDimensionHelper getHelper() {
         return helper;
+    }
+
+    public void persistPortals(java.util.Map<String, java.util.List<String>> portals) {
+        if (storage != null) {
+            storage.setPortals(portals);
+        }
     }
 
     public record CreateResult(boolean success, String error, DimensionInfo info) {

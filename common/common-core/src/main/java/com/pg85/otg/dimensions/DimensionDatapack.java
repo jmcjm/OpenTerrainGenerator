@@ -32,7 +32,7 @@ public class DimensionDatapack {
         }
     }
 
-    public void createDimensionFiles(DimensionInfo info, DimensionSettings settings) throws IOException {
+    public void createDimensionFiles(DimensionInfo info, DimensionSettings settings, String presetRegistryName) throws IOException {
         ensurePackMcmeta();
 
         // NOTE: Do NOT create dimension_type JSON - OTG already registers dimension types
@@ -46,7 +46,7 @@ public class DimensionDatapack {
                 .resolve("dimension")
                 .resolve(info.getName() + ".json");
         Files.createDirectories(dimPath.getParent());
-        Files.writeString(dimPath, generateDimensionJson(info));
+        Files.writeString(dimPath, generateDimensionJson(info, presetRegistryName));
 
         OTGLog.info("Created datapack files for dimension %s", info.getName());
     }
@@ -119,8 +119,10 @@ public class DimensionDatapack {
         );
     }
 
-    private String generateDimensionJson(DimensionInfo info) {
-        // Format must match OTGFabricChunkGenerator.CODEC:
+    private String generateDimensionJson(DimensionInfo info, String presetRegistryName) {
+        // The dimension_type and noise settings references must match what
+        // RegistryLoaderMixin registers: otg:<presetRegistryName>.
+        // Format must match SharedOTGChunkGenerator.CODEC:
         // - biome_source: OTGFabricBiomeProvider with preset_name and seed
         // - settings: reference to noise settings (use overworld as default)
         return String.format("""
@@ -133,15 +135,16 @@ public class DimensionDatapack {
                       "preset_name": "%s",
                       "seed": %d
                     },
-                    "settings": "minecraft:overworld"
+                    "settings": "%s:%s"
                   }
                 }
                 """,
-                Constants.MOD_ID_SHORT, info.getName(),
+                Constants.MOD_ID_SHORT, presetRegistryName,
                 Constants.MOD_ID_SHORT, Constants.MOD_ID_SHORT,
                 Constants.MOD_ID_SHORT, Constants.MOD_ID_SHORT,
                 info.getPreset(),
-                info.getSeed()
+                info.getSeed(),
+                Constants.MOD_ID_SHORT, presetRegistryName
         );
     }
 }
