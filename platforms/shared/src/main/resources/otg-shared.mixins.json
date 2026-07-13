@@ -14,7 +14,9 @@
     "CocoaDecoratorMixin",
     "StructureManagerAccessor",
     "LanguageMixin",
-    "LevelGameRulesMixin"
+    "LevelGameRulesMixin",
+    "MappedRegistryAccessor",
+    "MinecraftServerAccessor"
   ],
   "client": [
   ],

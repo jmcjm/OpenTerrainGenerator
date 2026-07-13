@@ -4,6 +4,8 @@ import com.pg85.otg.OTG;
 import com.pg85.otg.shared.commands.OTGCommand;
 import com.pg85.otg.fabric.events.WorldSaveCallback;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
+import com.pg85.otg.shared.dimensions.DimensionManager;
+import com.pg85.otg.shared.dimensions.SharedDimensionHelper;
 import com.pg85.otg.shared.gamerules.GameRuleApplier;
 import com.pg85.otg.shared.gamerules.GameRuleManager;
 import com.pg85.otg.shared.materials.SharedMaterialReader;
@@ -41,8 +43,21 @@ public class OTGPlugin implements ModInitializer {
 	}
 
 	void registerServerEvents() {
-		ServerLifecycleEvents.SERVER_STARTED.register(GameRuleApplier::applyToOverworldIfConfigured);
-		ServerLifecycleEvents.SERVER_STOPPED.register(server -> GameRuleManager.clear());
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+			GameRuleApplier.applyToOverworldIfConfigured(server);
+			DimensionManager manager = new DimensionManager(new SharedDimensionHelper());
+			manager.initialize(server);
+			DimensionManager.setInstance(manager);
+			OTGLog.getLogger().log(LogLevel.INFO, LogCategory.MAIN, "OTG Dimension Manager initialized");
+		});
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			DimensionManager manager = DimensionManager.get();
+			if (manager != null) {
+				manager.shutdown();
+				DimensionManager.setInstance(null);
+			}
+			GameRuleManager.clear();
+		});
 	}
 
 	void registerWorldSave() {

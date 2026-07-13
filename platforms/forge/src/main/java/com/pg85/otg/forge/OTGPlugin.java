@@ -5,6 +5,8 @@ import com.pg85.otg.OTG;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.shared.biome.SharedOTGBiomeProvider;
 import com.pg85.otg.shared.commands.OTGCommand;
+import com.pg85.otg.shared.dimensions.DimensionManager;
+import com.pg85.otg.shared.dimensions.SharedDimensionHelper;
 import com.pg85.otg.shared.gamerules.GameRuleApplier;
 import com.pg85.otg.shared.gamerules.GameRuleManager;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
@@ -66,9 +68,18 @@ public class OTGPlugin {
 
     private void onServerStarted(ServerStartedEvent event) {
         GameRuleApplier.applyToOverworldIfConfigured(event.getServer());
+        DimensionManager manager = new DimensionManager(new SharedDimensionHelper());
+        manager.initialize(event.getServer());
+        DimensionManager.setInstance(manager);
+        OTGLog.getLogger().log(LogLevel.INFO, LogCategory.MAIN, "OTG Dimension Manager initialized");
     }
 
     private void onServerStopped(ServerStoppedEvent event) {
+        DimensionManager manager = DimensionManager.get();
+        if (manager != null) {
+            manager.shutdown();
+            DimensionManager.setInstance(null);
+        }
         GameRuleManager.clear();
     }
 
