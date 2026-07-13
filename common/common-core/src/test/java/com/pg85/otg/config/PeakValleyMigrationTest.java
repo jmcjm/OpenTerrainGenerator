@@ -67,4 +67,13 @@ class PeakValleyMigrationTest {
         assertEquals(0.45, t.getVolatilityWeight1(), 1e-9);
         assertEquals(0.5, t.getVolatilityWeight2(), 1e-9);
     }
+
+    @Test
+    void v1FileWithExplicitVolatilityGetsMigrated() {
+        // v1 file (no ConfigVersion line) WITH volatility keys present:
+        // the < 2 migration must still fire for present values.
+        BiomeTerrainSettings t = read(mapOf("Volatility1: 5.0", "VolatilityWeight1: 0.5"));
+        assertEquals(6.0, t.getVolatility1(), 1e-9);          // 5.0 + 1
+        assertEquals(0.0, t.getVolatilityWeight1(), 1e-9);    // (0.5 - 0.5) * 24
+    }
 }
