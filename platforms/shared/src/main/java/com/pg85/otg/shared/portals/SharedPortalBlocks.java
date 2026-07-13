@@ -23,21 +23,29 @@ public final class SharedPortalBlocks {
     public static Map<String, SharedOTGPortalBlock> createBlocks() {
         if (PORTAL_BLOCKS.isEmpty()) {
             for (String color : PortalColors.COLORS) {
-                SharedOTGPortalBlock block = new SharedOTGPortalBlock(
-                        BlockBehaviour.Properties.of()
-                                .mapColor(MapColor.COLOR_RED)
-                                .noCollission()
-                                .randomTicks()
-                                .strength(-1.0F)
-                                .sound(SoundType.GLASS)
-                                .lightLevel(state -> 11),
-                        color
-                );
-                PORTAL_BLOCKS.put(color, block);
+                create(color);
             }
-            SharedOTGPortalBlock.init(SharedPortalBlocks::getPortalBlock);
         }
         return PORTAL_BLOCKS;
+    }
+
+    /**
+     * Creates (or returns) the portal block for one color. Block construction
+     * touches the block registry (intrusive holders), so on forge this must run
+     * inside a DeferredRegister supplier, not at mod construction time.
+     */
+    public static SharedOTGPortalBlock create(String color) {
+        SharedOTGPortalBlock.init(SharedPortalBlocks::getPortalBlock);
+        return PORTAL_BLOCKS.computeIfAbsent(color, c -> new SharedOTGPortalBlock(
+                BlockBehaviour.Properties.of()
+                        .mapColor(MapColor.COLOR_RED)
+                        .noCollission()
+                        .randomTicks()
+                        .strength(-1.0F)
+                        .sound(SoundType.GLASS)
+                        .lightLevel(state -> 11),
+                c
+        ));
     }
 
     public static SharedOTGPortalBlock getPortalBlock(String color) {

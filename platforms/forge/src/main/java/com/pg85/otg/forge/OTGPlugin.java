@@ -2,6 +2,7 @@ package com.pg85.otg.forge;
 
 import com.mojang.serialization.Codec;
 import com.pg85.otg.OTG;
+import com.pg85.otg.config.settings.preset.PortalColors;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.shared.biome.SharedOTGBiomeProvider;
 import com.pg85.otg.shared.commands.OTGCommand;
@@ -49,8 +50,11 @@ public class OTGPlugin {
     static {
         BIOME_SOURCES.register(Constants.MOD_ID_SHORT, () -> SharedOTGBiomeProvider.CODEC);
         CHUNK_GENERATORS.register(Constants.MOD_ID_SHORT, () -> SharedOTGChunkGenerator.CODEC);
-        SharedPortalBlocks.createBlocks().forEach((color, block) ->
-                BLOCKS.register("otg_portal_" + color, () -> block));
+        // Block construction must happen inside the suppliers: at mod construction
+        // time the block registry is frozen and intrusive holders can't be created.
+        for (String color : PortalColors.COLORS) {
+            BLOCKS.register("otg_portal_" + color, () -> SharedPortalBlocks.create(color));
+        }
     }
 
     public OTGPlugin() {
