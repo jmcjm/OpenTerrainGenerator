@@ -62,19 +62,24 @@ public class SharedOTGTeleporter {
         return createPortal(destination, searchPos, portalColor);
     }
 
+    /** Portals link within this horizontal distance of the scaled coordinates, like vanilla. */
+    private static final int LINK_RADIUS = 128;
+
     private static Optional<BlockPos> findRegisteredPortal(ServerLevel level, BlockPos searchPos, String portalColor) {
         SharedOTGPortalBlock targetBlock = SharedOTGPortalBlock.lookupPortalBlock(portalColor);
         if (targetBlock == null) return Optional.empty();
 
         BlockPos best = null;
-        double bestDistSq = Double.MAX_VALUE;
+        double bestDistSq = (double) LINK_RADIUS * LINK_RADIUS;
         for (BlockPos pos : SharedPortalRegistry.get(level.dimension(), portalColor)) {
             if (level.getBlockState(pos).getBlock() != targetBlock) {
                 // Portal was broken - forget it
                 SharedPortalRegistry.unregister(level.dimension(), portalColor, pos);
                 continue;
             }
-            double distSq = pos.distSqr(searchPos);
+            double dx = pos.getX() - searchPos.getX();
+            double dz = pos.getZ() - searchPos.getZ();
+            double distSq = dx * dx + dz * dz;
             if (distSq < bestDistSq) {
                 bestDistSq = distSq;
                 best = pos;
