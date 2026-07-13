@@ -408,6 +408,76 @@ Vertical terrain fracturing. Positive = more cliffs, overhangs, and floating isl
 | Default | `0.0` |
 | Range | `-500.0` – `500.0` |
 
+### ContinentalScale
+
+Overall amplitude of the continental height variation — the large-scale terrain undulation that biomes respond to via their `PeakFactor`/`ValleyFactor`. `0.2` is the default. Higher values make the continental highs and lows more dramatic. Setting `ContinentalScale: 0` fully disables continental undulation, giving a flat baseline (terrain shape then comes only from biome height and volatility noise).
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `0.2` |
+| Range | `0.0` – `10.0` |
+
+### ContinentalBias
+
+Shifts the balance between valleys and peaks in the continental noise. Negative values produce more valleys than peaks; positive values produce more peaks than valleys. Measured splits: `-0.05` ≈ 55% valleys, `-0.15` ≈ 65% valleys, `-0.30` ≈ 77% valleys.
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `-0.05` |
+| Range | `-1.0` – `1.0` |
+
+### BaseHeightFraction
+
+Where the terrain surface sits, as a fraction of world height, when a biome's `BiomeHeight` is `0`. `0.46875` places the surface at roughly half the world height (the default). Lower values sink the surface (more sky, shallower ground); higher values raise it (higher surface, deeper underground).
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `0.46875` |
+| Range | `0.0` – `1.0` |
+
+### BiomeHeightWeight
+
+How much a biome's `BiomeHeight` config shifts the terrain surface. `0` puts every biome at the same baseline; higher values create more dramatic height differences between biomes.
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `0.125` |
+| Range | `0.0` – `1.0` |
+
+### ContinentalHeightWeight
+
+How much the continental noise shifts the terrain surface. `0` means continental noise has no effect on surface position; higher values create larger-scale terrain undulation.
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `0.25` |
+| Range | `0.0` – `1.0` |
+
+### FalloffSteepness
+
+Controls how sharply terrain transitions from solid to air. Higher values = thinner transition zone = sharper terrain edges. Lower values = thicker transition zone = smoother, more blobby terrain. The default `6.0` produces roughly an 80-block transition at the default biome volatility (`0.3`).
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `6.0` |
+| Range | `0.1` – `100.0` |
+
+### NoiseAmplitude
+
+Global multiplier for the terrain noise contribution — scales the effect of every biome's `Volatility1`/`Volatility2` uniformly. `1.0` = noise at face value, higher = more chaotic terrain, `0` = falloff-only terrain (no volatility noise at all).
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `1.0` |
+| Range | `0.0` – `1000.0` |
+
 ### BetterSnowFall
 
 When `false`, places a single snow layer on the highest block. When `true`, places 1–8 snow layers based on biome temperature, and snow falls through leaves.

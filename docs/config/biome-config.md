@@ -233,34 +233,38 @@ Same blending logic as `SmoothRadius` but applies only to the `CustomHeightContr
 | Default | `2` |
 | Range | `0` – `32` |
 
-### MaxAverageHeight
+### PeakFactor
 
-If greater than 0, caps how high the terrain rises on average before levelling off. Negative values lower the ceiling or actively depress terrain. `0` means no effect.
-
-| Property | Value |
-|----------|-------|
-| Type | `double` |
-| Default | `0.0` |
-| Range | `-1000.0` – `1000.0` |
-
-### MaxAverageDepth
-
-Same as `MaxAverageHeight` but for downward terrain — typically the ocean floor. Positive values deepen the floor; negative values raise it.
+Multiplier for how strongly this biome responds to continental peaks — the large-scale upward undulation of the continental noise (see `ContinentalScale`/`ContinentalBias` in the DimensionPreset config). `1.0` = full response, values between `0` and `1` = weaker peaks, `0` = this biome ignores continental peaks entirely (flat baseline). Negative values invert the response, so continental peaks *lower* the terrain instead of raising it. Use high values (e.g. `2.0`) for mountain/peak biomes.
 
 | Property | Value |
 |----------|-------|
 | Type | `double` |
-| Default | `0.0` |
+| Default | `1.0` |
 | Range | `-1000.0` – `1000.0` |
+
+> **Migration:** This setting replaces the old `MaxAverageHeight`. Older configs (before `ConfigVersion: 3`) are converted automatically — the key is renamed and the 0-centered additive value is shifted to the new multiplier scale (`value + 1`).
+
+### ValleyFactor
+
+Multiplier for how strongly this biome responds to continental valleys — the downward undulation of the continental noise, typically the ocean floor. `1.0` = full response, values between `0` and `1` = shallower valleys, `0` = none. Negative values invert the response, so continental valleys *raise* the terrain instead of lowering it. Use high values (e.g. `2.0`) for deep-ocean biomes.
+
+| Property | Value |
+|----------|-------|
+| Type | `double` |
+| Default | `1.0` |
+| Range | `-1000.0` – `1000.0` |
+
+> **Migration:** This setting replaces the old `MaxAverageDepth`. Older configs (before `ConfigVersion: 3`) are converted automatically — the key is renamed and the 0-centered additive value is shifted to the new multiplier scale (`value + 1`).
 
 ### Volatility1
 
-An independent noise layer that adds chaos to the landscape on top of the biome height. Larger positive values = more chaotic terrain; negative values calm it down.
+An independent noise layer that adds chaos to the landscape on top of the biome height. Larger positive values = more chaotic terrain; negative values calm it down. The DimensionPreset's `NoiseAmplitude` scales this contribution globally across all biomes.
 
 | Property | Value |
 |----------|-------|
 | Type | `double` |
-| Default | `0.0` |
+| Default | `1.0` |
 | Range | `-10000.0` – `1000.0` |
 
 > **Note:** Negative config values are transformed internally as `v = 1 / (|v| + 1)`. The raw negative value is never used directly.
@@ -272,7 +276,7 @@ Second independent noise layer, identical behaviour to `Volatility1` — an addi
 | Property | Value |
 |----------|-------|
 | Type | `double` |
-| Default | `0.0` |
+| Default | `1.0` |
 | Range | `-10000.0` – `1000.0` |
 
 > **Note:** Same negative-value transformation as `Volatility1` applies.
@@ -284,7 +288,7 @@ Controls how much `Volatility1` contributes relative to `Volatility2`. The engin
 | Property | Value |
 |----------|-------|
 | Type | `double` |
-| Default | `0.5` |
+| Default | `0.45` |
 | Range | `-1000.0` – `1000.0` |
 
 !!! warning "Do not 'fix' these to 0–1"
@@ -297,7 +301,7 @@ Controls how much `Volatility2` contributes. See `VolatilityWeight1` for the hig
 | Property | Value |
 |----------|-------|
 | Type | `double` |
-| Default | `0.45` |
+| Default | `0.5` |
 | Range | `-1000.0` – `1000.0` |
 
 ### DisableBiomeHeight

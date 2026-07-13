@@ -1,5 +1,41 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-13**
+
+- **Continental terrain noise, on by default.** A new large-scale continental
+  noise layer shapes the world's peaks and valleys. Seven doubles on the
+  DimensionPreset (`DimensionPresetConfig.ini`, *Terrain Height & Volatility*)
+  tune it: `ContinentalScale` (0.2, overall amplitude — `0` disables continental
+  undulation), `ContinentalBias` (-0.05, valley/peak balance — measured `-0.05`
+  ≈ 55% valleys, `-0.15` ≈ 65%, `-0.30` ≈ 77%), `BaseHeightFraction` (0.46875,
+  surface position when biome height is 0), `BiomeHeightWeight` (0.125),
+  `ContinentalHeightWeight` (0.25), `FalloffSteepness` (6.0, solid↔air transition
+  sharpness) and `NoiseAmplitude` (1.0, global multiplier for Volatility1/2 — `0`
+  = falloff-only terrain).
+- **`PeakFactor`/`ValleyFactor` replace `MaxAverageHeight`/`MaxAverageDepth`.**
+  Per-biome multipliers (double, default `1.0`, range `-1000`..`1000`) for how
+  strongly a biome responds to continental peaks/valleys: `1.0` = full response,
+  `0` = ignore, negatives invert. The old keys are renamed on read and their
+  0-centered additive value is shifted to the multiplier scale (`value + 1`).
+- **One terrain pipeline for game and editor.** Terrain columns now come from a
+  single shared `TerrainNoisePipeline` (`common-util`) driving both world
+  generation (`OTGChunkGenerator`) and the editor's terrain preview
+  (`BiomeHeightmapGenerator`), so the preview matches what actually generates.
+- **`ConfigVersion` bumped 2 → 3 with automatic migration.** Configs are upgraded
+  in place on load; files without a `ConfigVersion` line are treated as v1 and
+  fully migrated. Volatility defaults were retuned to match the new pipeline:
+  `Volatility1`/`Volatility2` `0` → `1.0`, `VolatilityWeight1` `0.5` → `0.45`,
+  `VolatilityWeight2` `0.45` → `0.5`.
+- **Compatibility break: pre-port worlds show chunk seams.** Continental noise is
+  on by default and the noise normalization changed, so terrain generated before
+  this port will not line up with newly generated chunks at the old/new boundary.
+  Existing worlds keep their old terrain but get a visible seam where new chunks
+  are generated. To avoid seams, set `ContinentalScale: 0` on affected presets or
+  generate the world fresh.
+- **DefaultPreset retuned for the new keys.** Mountain/peak biomes (Mountains,
+  Gravelly/Wooded Mountains, Jagged/Frozen/Stony Peaks) get `PeakFactor: 2.0`;
+  deep oceans (Deep, Deep Cold/Lukewarm/Warm/Frozen Ocean) get `ValleyFactor: 2.0`.
+
 **2026-07-12**
 
 Ports from upstream PG85/OpenTerrainGenerator (branch 1.20.1):
