@@ -74,13 +74,11 @@ public class SharedDimensionHelper implements PlatformDimensionHelper {
     protected LevelStem createOTGLevelStem(
             String presetName, long seed,
             Holder<DimensionType> dimTypeHolder,
-            Holder<NoiseGeneratorSettings> noiseSettings,
-            Registry<Biome> biomeRegistry
+            Holder<NoiseGeneratorSettings> noiseSettings
     ) {
         SharedOTGChunkGenerator chunkGenerator = new SharedOTGChunkGenerator(
                 new SharedOTGBiomeProvider(presetName, seed),
-                noiseSettings,
-                biomeRegistry
+                noiseSettings
         );
         return new LevelStem(dimTypeHolder, chunkGenerator);
     }
@@ -173,11 +171,10 @@ public class SharedDimensionHelper implements PlatformDimensionHelper {
                 dimTypeHolder = dimTypeRegistry.getHolderOrThrow(dimTypeKey);
             }
 
-            Registry<Biome> biomeRegistry = server.registryAccess().registryOrThrow(Registries.BIOME);
             Registry<NoiseGeneratorSettings> noiseRegistry = server.registryAccess().registryOrThrow(Registries.NOISE_SETTINGS);
             Holder<NoiseGeneratorSettings> noiseHolder = noiseRegistry.getHolderOrThrow(NoiseGeneratorSettings.OVERWORLD);
 
-            LevelStem levelStem = createOTGLevelStem(presetName, seed, dimTypeHolder, noiseHolder, biomeRegistry);
+            LevelStem levelStem = createOTGLevelStem(presetName, seed, dimTypeHolder, noiseHolder);
 
             WorldData worldData = server.getWorldData();
             DerivedLevelData derivedLevelData = new DerivedLevelData(worldData, worldData.overworldData());

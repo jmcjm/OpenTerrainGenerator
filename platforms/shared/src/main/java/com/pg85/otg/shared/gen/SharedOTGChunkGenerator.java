@@ -66,15 +66,13 @@ public class SharedOTGChunkGenerator extends ChunkGenerator {
             RecordCodecBuilder.create(instance ->
                     instance.group(
                             SharedOTGBiomeProvider.CODEC.fieldOf("biome_source").forGetter(SharedOTGChunkGenerator::getBiomeSource),
-                            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(SharedOTGChunkGenerator::getSettings),
-                            RegistryCodecs.fullCodec(Registries.BIOME, Lifecycle.stable(), Biome.DIRECT_CODEC).fieldOf("biomeRegistry").forGetter(SharedOTGChunkGenerator::getBiomeRegistry)
+                            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(SharedOTGChunkGenerator::getSettings)
                     ).apply(instance, instance.stable(SharedOTGChunkGenerator::new)));
 
     private final Holder<NoiseGeneratorSettings> settings;
     private final SharedOTGBiomeProvider biomeSource;
     private final OTGChunkGenerator internalGenerator;
     private final Preset preset;
-    private final Registry<Biome> biomeRegistry;
     private final NoiseBasedChunkGenerator horribleDelegateForCarvers;
     private final ShadowChunkGenerator shadowChunkGenerator;
     private Aquifer.FluidPicker globalFluidPicker = null;
@@ -87,7 +85,7 @@ public class SharedOTGChunkGenerator extends ChunkGenerator {
     private final OTGWorldInfo otgWorldInfo;
 
     public SharedOTGChunkGenerator(
-            SharedOTGBiomeProvider biomeSource, Holder<NoiseGeneratorSettings> settings, Registry<Biome> biomeHolderGetter
+            SharedOTGBiomeProvider biomeSource, Holder<NoiseGeneratorSettings> settings
     ) {
         super(biomeSource);
         this.settings = settings;
@@ -102,7 +100,6 @@ public class SharedOTGChunkGenerator extends ChunkGenerator {
                 otgWorldInfo
         );
         this.preset = OTG.getEngine().getPresetLoader().getPresetByFolderName(biomeSource.getPresetFolderName());
-        this.biomeRegistry = biomeHolderGetter;
         this.horribleDelegateForCarvers = new NoiseBasedChunkGenerator(biomeSource, settings);
         this.chunkDecorator = new OTGChunkDecorator();
         this.shadowChunkGenerator = new ShadowChunkGenerator(OTG.getEngine().getPluginConfig().getMaxWorkerThreads());

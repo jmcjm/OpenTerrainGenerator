@@ -191,12 +191,10 @@ public class RegistryLoaderMixin {
                     //continue;
                 }
 
-                Registry<Biome> biomeRegistry = getRegistryOrThrow(registries, Registries.BIOME);
 
                 chunkGenerator = new SharedOTGChunkGenerator(
                         new SharedOTGBiomeProvider(preset.getFolderName(), 0L),
-                        noiseReference,
-                        biomeRegistry
+                        noiseReference
                 );
                 levelStem = new LevelStem(
                         dimensionReference,
