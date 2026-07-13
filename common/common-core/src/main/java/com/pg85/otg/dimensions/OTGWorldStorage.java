@@ -26,6 +26,9 @@ public class OTGWorldStorage {
 
         @JsonProperty("dimensions")
         private Map<String, DimensionInfo> dimensions = new LinkedHashMap<>();
+
+        @JsonProperty("gameRules")
+        private Map<String, Map<String, Object>> gameRules = new LinkedHashMap<>();
     }
 
     private final Path worldPath;
@@ -129,5 +132,26 @@ public class OTGWorldStorage {
 
     public boolean exists(String name) {
         return data.getDimensions().containsKey(name);
+    }
+
+    // --- GameRules operations ---
+
+    public void putGameRules(String dimensionKey, Map<String, Object> rules) {
+        data.getGameRules().put(dimensionKey, new LinkedHashMap<>(rules));
+        save();
+    }
+
+    public Optional<Map<String, Object>> getGameRules(String dimensionKey) {
+        return Optional.ofNullable(data.getGameRules().get(dimensionKey));
+    }
+
+    public Map<String, Map<String, Object>> getAllGameRules() {
+        return Collections.unmodifiableMap(data.getGameRules());
+    }
+
+    public void removeGameRules(String dimensionKey) {
+        if (data.getGameRules().remove(dimensionKey) != null) {
+            save();
+        }
     }
 }

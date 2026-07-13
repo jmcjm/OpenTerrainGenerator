@@ -5,6 +5,9 @@ import com.pg85.otg.dimensions.DimensionDatapack;
 import com.pg85.otg.dimensions.DimensionInfo;
 import com.pg85.otg.dimensions.OTGWorldStorage;
 import com.pg85.otg.presets.Preset;
+import com.pg85.otg.config.settings.preset.GameRuleSettings;
+import com.pg85.otg.shared.gamerules.GameRuleApplier;
+import com.pg85.otg.shared.gamerules.GameRuleManager;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.OTGLog;
@@ -14,6 +17,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
@@ -62,6 +66,24 @@ public class DimensionManager {
             }
         }
 
+        // Restore persisted GameRules for the created dimensions
+        for (var entry : storage.getAllGameRules().entrySet()) {
+            ResourceKey<Level> levelKey = parseDimensionKey(entry.getKey());
+            if (levelKey != null) {
+                GameRuleManager.register(levelKey, GameRuleApplier.fromMap(entry.getValue()));
+            }
+        }
+    }
+
+    private static ResourceKey<Level> parseDimensionKey(String dimKeyStr) {
+        int colonIdx = dimKeyStr.indexOf(':');
+        if (colonIdx < 0) {
+            OTGLog.warn("Invalid dimension key in storage: %s", dimKeyStr);
+            return null;
+        }
+        return ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION,
+                new ResourceLocation(dimKeyStr.substring(0, colonIdx), dimKeyStr.substring(colonIdx + 1)));
     }
 
     public CreateResult createDimension(String presetName) {
@@ -82,6 +104,13 @@ public class DimensionManager {
         try {
             datapack.createDimensionFiles(info, preset.getPresetConfig().getDimensionSettings());
             storage.addDimension(info);
+
+            GameRuleSettings gameRuleSettings = preset.getPresetConfig().getGameRuleSettings();
+            if (gameRuleSettings != null && gameRuleSettings.isOverrideGameRules()) {
+                GameRules gameRules = GameRuleApplier.createGameRules(gameRuleSettings, server);
+                GameRuleManager.register(DimensionKeys.otg(normalizedName), gameRules);
+                storage.putGameRules("otg:" + normalizedName, GameRuleApplier.toMap(gameRules));
+            }
 
             helper.createDimensionRuntime(server, normalizedName, presetName, seed);
             return CreateResult.success(info);
@@ -121,6 +150,8 @@ public class DimensionManager {
 
             datapack.deleteDimensionFiles(normalizedName);
             storage.removeDimension(normalizedName);
+            GameRuleManager.unregister(DimensionKeys.otg(normalizedName));
+            storage.removeGameRules("otg:" + normalizedName);
 
             if (purge) {
                 helper.purgeWorldData(server, normalizedName);
