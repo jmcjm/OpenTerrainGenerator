@@ -59,6 +59,8 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
     public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (!entity.isPassenger() && !entity.isVehicle() && entity.canChangeDimensions()) {
             if (level.isClientSide) {
+                // Drives the vanilla portal overlay and nausea wobble on the client
+                entity.handleInsidePortal(pos);
                 return;
             }
 
