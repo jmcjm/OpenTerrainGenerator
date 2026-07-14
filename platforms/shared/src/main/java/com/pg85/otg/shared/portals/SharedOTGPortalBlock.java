@@ -70,9 +70,13 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
                 if (entity instanceof Player player) {
                     long gameTime = level.getGameTime();
                     long[] ticks = portalTicks.computeIfAbsent(player.getUUID(), k -> new long[2]);
-                    // ticks[0] = ticks in portal, ticks[1] = last game time seen
-                    ticks[0] = (gameTime - ticks[1] <= 1) ? ticks[0] + 1 : 1;
-                    ticks[1] = gameTime;
+                    // ticks[0] = ticks in portal, ticks[1] = last game time seen.
+                    // entityInside fires once per intersected portal block, so only
+                    // count the first call of each game tick.
+                    if (ticks[1] != gameTime) {
+                        ticks[0] = (gameTime - ticks[1] == 1) ? ticks[0] + 1 : 1;
+                        ticks[1] = gameTime;
+                    }
 
                     int waitTime = player.getAbilities().invulnerable ? 1 : 80;
                     if (ticks[0] >= waitTime) {
