@@ -125,7 +125,13 @@ public class WorldPresetRegistrar {
         }
 
         // Nether
-        if (config.Nether != null && config.Nether.PresetFolderName != null) {
+        if (config.Nether != null && config.Nether.isNonOTG()) {
+            LevelStem stem = createVanillaLevelStem(
+                LevelStem.NETHER, config.Nether.NonOTGWorldType, loaders, dimensionTypes, noiseSettings, biomeRegistry);
+            if (stem != null) {
+                stems.put(LevelStem.NETHER, stem);
+            }
+        } else if (config.Nether != null && config.Nether.hasPreset()) {
             LevelStem stem = createOTGLevelStem(
                 config.Nether.PresetFolderName, LevelStem.NETHER,
                 loadedPresets, factory, dimensionTypes, noiseSettings, biomeRegistry);
@@ -141,7 +147,13 @@ public class WorldPresetRegistrar {
         }
 
         // End
-        if (config.End != null && config.End.PresetFolderName != null) {
+        if (config.End != null && config.End.isNonOTG()) {
+            LevelStem stem = createVanillaLevelStem(
+                LevelStem.END, config.End.NonOTGWorldType, loaders, dimensionTypes, noiseSettings, biomeRegistry);
+            if (stem != null) {
+                stems.put(LevelStem.END, stem);
+            }
+        } else if (config.End != null && config.End.hasPreset()) {
             LevelStem stem = createOTGLevelStem(
                 config.End.PresetFolderName, LevelStem.END,
                 loadedPresets, factory, dimensionTypes, noiseSettings, biomeRegistry);
@@ -160,8 +172,9 @@ public class WorldPresetRegistrar {
         if (config.Dimensions != null) {
             Set<String> seenDimKeys = new HashSet<>();
             for (WorldPresetConfig.OTGDimension dim : config.Dimensions) {
-                if (dim.PresetFolderName == null) continue;
-                String normalizedName = dim.PresetFolderName.toLowerCase(Locale.ROOT)
+                String rawName = dim.hasPreset() ? dim.PresetFolderName : dim.DimensionName;
+                if (rawName == null || rawName.isBlank()) continue;
+                String normalizedName = rawName.toLowerCase(Locale.ROOT)
                     .replaceAll("[^a-z0-9_.-]", "_");
                 if (!seenDimKeys.add(normalizedName)) {
                     OTGLog.warn("WorldPreset has duplicate custom dimension '{}', skipping duplicate", normalizedName);
@@ -170,12 +183,24 @@ public class WorldPresetRegistrar {
                 ResourceKey<LevelStem> key = ResourceKey.create(
                     Registries.LEVEL_STEM,
                     ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID_SHORT, normalizedName));
-                LevelStem stem = createOTGLevelStem(
-                    dim.PresetFolderName, key,
-                    loadedPresets, factory, dimensionTypes, noiseSettings, biomeRegistry);
-                if (stem != null) {
-                    stems.put(key, stem);
+
+                LevelStem stem;
+                if (dim.isNonOTG()) {
+                    // Non-OTG generator mounted as a custom dimension: use the referenced
+                    // WorldPreset's overworld stem (that's the "main" generator of any preset).
+                    stem = lookupWorldPresetStem(dim.NonOTGWorldType, LevelStem.OVERWORLD, loaders);
+                    if (stem == null) {
+                        OTGLog.warn("Non-OTG dimension '{}': WorldPreset '{}' not found, skipping dimension",
+                            dim.DimensionName, dim.NonOTGWorldType);
+                        continue;
+                    }
+                } else {
+                    stem = createOTGLevelStem(
+                        dim.PresetFolderName, key,
+                        loadedPresets, factory, dimensionTypes, noiseSettings, biomeRegistry);
+                    if (stem == null) continue;
                 }
+                stems.put(key, stem);
             }
         }
 
@@ -229,11 +254,12 @@ public class WorldPresetRegistrar {
     /**
      * Creates a vanilla LevelStem for overworld/nether/end.
      *
-     * For overworld with NonOTGWorldType set: looks up the WorldPreset by name
-     * in MC's registry (supports "flat", "amplified", "large_biomes", modded types
-     * like "biomesoplenty", etc.) and extracts the overworld LevelStem from it.
+     * With a worldType set: looks up the WorldPreset by name in MC's registry
+     * (supports "flat", "amplified", "large_biomes", modded types like
+     * "biomesoplenty:biomesoplenty", etc.) and extracts the matching LevelStem
+     * (overworld/nether/end) from it.
      *
-     * For nether/end (or overworld fallback): creates standard vanilla generation.
+     * Without a worldType (or on lookup miss): creates standard vanilla generation.
      */
     private static LevelStem createVanillaLevelStem(
             ResourceKey<LevelStem> stemKey,
@@ -243,14 +269,14 @@ public class WorldPresetRegistrar {
             HolderGetter<NoiseGeneratorSettings> noiseSettings,
             Registry<Biome> biomeRegistry
     ) {
-        // For overworld with a specific world type: lookup the MC WorldPreset by name
-        // and extract the overworld LevelStem from it. This delegates 100% to vanilla/mods.
-        if (stemKey.equals(LevelStem.OVERWORLD) && worldType != null && !worldType.isBlank()) {
-            LevelStem fromPreset = lookupWorldPresetOverworld(worldType, loaders);
+        // For a slot with a specific world type: look up the MC WorldPreset by name
+        // and extract the matching LevelStem from it. Delegates 100% to vanilla/mods.
+        if (worldType != null && !worldType.isBlank()) {
+            LevelStem fromPreset = lookupWorldPresetStem(worldType, stemKey, loaders);
             if (fromPreset != null) {
                 return fromPreset;
             }
-            OTGLog.warn("WorldPreset '{}' not found in registry, falling back to vanilla normal", worldType);
+            OTGLog.warn("WorldPreset '{}' not found in registry, falling back to vanilla", worldType);
         }
 
         // Standard vanilla fallback (normal overworld, nether, end)
@@ -258,12 +284,16 @@ public class WorldPresetRegistrar {
     }
 
     /**
-     * Looks up a WorldPreset by name in MC's registry and extracts its overworld LevelStem.
-     * Supports vanilla types ("flat", "amplified", "large_biomes") and modded types
-     * (any mod that registers a WorldPreset, e.g. "biomesoplenty").
+     * Looks up a WorldPreset by name in MC's registry and extracts the LevelStem for the
+     * given slot. Supports vanilla types ("flat", "amplified", "large_biomes") and modded
+     * types (any mod that registers a WorldPreset, e.g. "biomesoplenty:biomesoplenty").
+     * Custom OTG dimensions use the referenced preset's OVERWORLD stem.
      */
-    private static LevelStem lookupWorldPresetOverworld(String worldType, List<RegistryDataLoader.Loader<?>> loaders) {
-        // Resolve the ResourceLocation — support both "flat" (→ minecraft:flat) and "modid:name"
+    private static LevelStem lookupWorldPresetStem(
+            String worldType,
+            ResourceKey<LevelStem> slot,
+            List<RegistryDataLoader.Loader<?>> loaders
+    ) {
         String type = worldType.trim().toLowerCase(Locale.ROOT);
         ResourceLocation loc = type.contains(":") ? ResourceLocation.tryParse(type) : ResourceLocation.withDefaultNamespace(type);
         if (loc == null) {
@@ -284,14 +314,14 @@ public class WorldPresetRegistrar {
             return null;
         }
 
-        Optional<LevelStem> overworld = holder.get().value().overworld();
-        if (overworld.isEmpty()) {
-            OTGLog.warn("WorldPreset '{}' has no overworld dimension", loc);
+        LevelStem stem = holder.get().value().dimensions.get(slot);
+        if (stem == null) {
+            OTGLog.warn("WorldPreset '{}' has no {} dimension", loc, slot.location());
             return null;
         }
 
-        OTGLog.info("Using overworld from WorldPreset '{}' for NonOTGWorldType", loc);
-        return overworld.get();
+        OTGLog.info("Using {} from WorldPreset '{}' for NonOTGWorldType", slot.location(), loc);
+        return stem;
     }
 
     /**
