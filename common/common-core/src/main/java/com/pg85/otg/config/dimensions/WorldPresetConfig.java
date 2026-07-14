@@ -84,9 +84,6 @@ public class WorldPresetConfig
 	
 	public static class OTGOverWorld extends OTGDimension
 	{
-		public String NonOTGWorldType; // Only used for MP atm to create non-otg overworlds.
-		public String NonOTGGeneratorSettings; // Only used for MP atm to create non-otg overworlds.
-		
 		public OTGOverWorld()
 		{
 			super();
@@ -98,10 +95,11 @@ public class WorldPresetConfig
 			this.NonOTGWorldType = nonOTGWorldType;
 			this.NonOTGGeneratorSettings = nonOTGGeneratorSettings;
 		}
-		
+
 		public OTGOverWorld clone()
 		{
 			OTGOverWorld clone = new OTGOverWorld(this.PresetFolderName, this.Seed, this.NonOTGWorldType, this.NonOTGGeneratorSettings);
+			clone.DimensionName = this.DimensionName;
 			clone.PortalBlocks = this.PortalBlocks;
 			clone.PortalColor = this.PortalColor;
 			clone.PortalMob = this.PortalMob;
@@ -115,6 +113,9 @@ public class WorldPresetConfig
 	public static class OTGDimension
 	{
 		public String PresetFolderName;
+		public String DimensionName;
+		public String NonOTGWorldType;
+		public String NonOTGGeneratorSettings;
 		public long Seed;
 		public String PortalBlocks;
 		public String PortalColor;
@@ -131,9 +132,24 @@ public class WorldPresetConfig
 			this.Seed = seed;
 		}
 
+		/** True when this entry references a non-OTG generator (MC WorldPreset registry key). */
+		public boolean isNonOTG()
+		{
+			return this.NonOTGWorldType != null && !this.NonOTGWorldType.isBlank();
+		}
+
+		/** True when this entry references an OTG DimensionPreset. */
+		public boolean hasPreset()
+		{
+			return this.PresetFolderName != null && !this.PresetFolderName.isBlank();
+		}
+
 		public OTGDimension clone()
 		{
 			OTGDimension otgDimension = new OTGDimension(this.PresetFolderName, this.Seed);
+			otgDimension.DimensionName = this.DimensionName;
+			otgDimension.NonOTGWorldType = this.NonOTGWorldType;
+			otgDimension.NonOTGGeneratorSettings = this.NonOTGGeneratorSettings;
 			otgDimension.PortalBlocks = this.PortalBlocks;
 			otgDimension.PortalColor = this.PortalColor;
 			otgDimension.PortalMob = this.PortalMob;

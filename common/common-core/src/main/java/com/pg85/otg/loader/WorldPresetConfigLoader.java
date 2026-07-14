@@ -60,14 +60,73 @@ public class WorldPresetConfigLoader {
     }
 
     /**
-     * Parses a WorldPreset YAML string.
+     * Parses a WorldPreset YAML string. Invalid dimension entries are pruned with a log.
      */
     public static @Nullable WorldPresetConfig fromYamlString(String input) {
         try {
-            return YAML_MAPPER.readValue(input, WorldPresetConfig.class);
+            WorldPresetConfig config = YAML_MAPPER.readValue(input, WorldPresetConfig.class);
+            if (config != null) {
+                validateAndPrune(config);
+            }
+            return config;
         } catch (IOException e) {
             OTGLog.error(LogCategory.CONFIGS, "Failed to parse WorldPreset YAML: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Enforces source rules on dimension entries:
+     * - exactly one of PresetFolderName / NonOTGWorldType per entry
+     * - non-OTG custom dimension entries need a DimensionName
+     * - DimensionName is meaningless on Overworld/Nether/End slots
+     * Invalid Dimensions entries are removed; invalid slot blocks fall back to vanilla.
+     */
+    private static void validateAndPrune(WorldPresetConfig config) {
+        String name = config.DisplayName != null ? config.DisplayName : "<unnamed>";
+
+        validateSlot(config.Overworld, "Overworld", name);
+        validateSlot(config.Nether, "Nether", name);
+        validateSlot(config.End, "End", name);
+
+        if (config.Dimensions == null) return;
+        config.Dimensions.removeIf(dim -> {
+            if (dim.hasPreset() && dim.isNonOTG()) {
+                OTGLog.error(LogCategory.CONFIGS,
+                    "WorldPreset '{}': Dimensions entry has both PresetFolderName and NonOTGWorldType, skipping entry", name);
+                return true;
+            }
+            if (dim.isNonOTG() && (dim.DimensionName == null || dim.DimensionName.isBlank())) {
+                OTGLog.error(LogCategory.CONFIGS,
+                    "WorldPreset '{}': non-OTG Dimensions entry needs a DimensionName, skipping entry", name);
+                return true;
+            }
+            if (!dim.hasPreset() && !dim.isNonOTG()) {
+                OTGLog.warn(LogCategory.CONFIGS,
+                    "WorldPreset '{}': Dimensions entry has neither PresetFolderName nor NonOTGWorldType, skipping entry", name);
+                return true;
+            }
+            if (dim.isNonOTG() && dim.Seed != 0) {
+                OTGLog.warn(LogCategory.CONFIGS,
+                    "WorldPreset '{}': Seed on non-OTG dimension '{}' is ignored (vanilla generators use the world seed)",
+                    name, dim.DimensionName);
+            }
+            return false;
+        });
+    }
+
+    private static void validateSlot(WorldPresetConfig.OTGDimension slot, String slotName, String configName) {
+        if (slot == null) return;
+        if (slot.hasPreset() && slot.isNonOTG()) {
+            OTGLog.error(LogCategory.CONFIGS,
+                "WorldPreset '{}': {} block has both PresetFolderName and NonOTGWorldType, falling back to vanilla", configName, slotName);
+            slot.PresetFolderName = null;
+            slot.NonOTGWorldType = null;
+        }
+        if (slot.DimensionName != null) {
+            OTGLog.warn(LogCategory.CONFIGS,
+                "WorldPreset '{}': DimensionName on the {} block is ignored (slot keys are fixed)", configName, slotName);
+            slot.DimensionName = null;
         }
     }
 }
