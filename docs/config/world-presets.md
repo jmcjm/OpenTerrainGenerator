@@ -153,6 +153,15 @@ Integer rules:
 
 `SpawnRadius`, `RandomTickSpeed`, `MaxEntityCramming`, `MaxCommandChainLength`, `MaxCommandForkCount`, `CommandModificationBlockLimit`, `PlayersNetherPortalDefaultDelay`, `PlayersNetherPortalCreativeDelay`, `PlayersSleepingPercentage`, `SnowAccumulationHeight`, `SpawnChunkRadius`
 
+!!! note "Global-state rules"
+    Day time and weather are stored **once per world save** and advanced only by the
+    overworld — Minecraft has no per-dimension clock. A per-dimension
+    `DoDaylightCycle`/`DoWeatherCycle` override therefore only takes effect when set on
+    the **Overworld** entry; on other dimensions the rule value is applied (visible via
+    `/gamerule`) but time and weather keep following the overworld. For a dimension with
+    frozen time, use a DimensionPreset with `FixedTime` in `DimensionPresetConfig.ini`
+    instead.
+
 ---
 
 ## Portal Configuration

@@ -32,6 +32,9 @@ public class OTGWorldStorage {
 
         @JsonProperty("worldPreset")
         private String worldPreset;
+
+        @JsonProperty("portals")
+        private Map<String, List<String>> portals = new LinkedHashMap<>();
     }
 
     private final Path worldPath;
@@ -166,6 +169,17 @@ public class OTGWorldStorage {
 
     public void setWorldPreset(String name) {
         data.setWorldPreset(name);
+        save();
+    }
+
+    // --- Portal registry ---
+
+    public Map<String, List<String>> getPortals() {
+        return data.getPortals();
+    }
+
+    public void setPortals(Map<String, List<String>> portals) {
+        data.setPortals(new LinkedHashMap<>(portals));
         save();
     }
 }

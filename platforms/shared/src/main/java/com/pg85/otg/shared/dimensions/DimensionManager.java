@@ -67,6 +67,8 @@ public class DimensionManager {
             }
         }
 
+        com.pg85.otg.shared.portals.SharedPortalRegistry.load(storage.getPortals());
+
         // Restore persisted GameRules for all dimensions
         for (var entry : storage.getAllGameRules().entrySet()) {
             String dimKeyStr = entry.getKey();
@@ -177,6 +179,7 @@ public class DimensionManager {
             storage.removeDimension(normalizedName);
             GameRuleManager.unregister(DimensionKeys.otg(normalizedName));
             storage.removeGameRules("otg:" + normalizedName);
+            com.pg85.otg.shared.portals.SharedPortalRegistry.removeLevel(DimensionKeys.otg(normalizedName));
 
             if (purge) {
                 helper.purgeWorldData(server, normalizedName);
@@ -219,6 +222,13 @@ public class DimensionManager {
 
     public void shutdown() {
         GameRuleManager.clear();
+        com.pg85.otg.shared.portals.SharedPortalRegistry.clear();
+    }
+
+    public void persistPortals(java.util.Map<String, java.util.List<String>> portals) {
+        if (storage != null) {
+            storage.setPortals(portals);
+        }
     }
 
     public PlatformDimensionHelper getHelper() {
