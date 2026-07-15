@@ -2,6 +2,7 @@
 
 **2026-07-15**
 
+- **Fixed: WorldPreset detection picked the wrong YAML when several shared the same overworld/nether/end presets.** The first-start heuristic now also compares the custom dimensions actually present in the world (`otg:*` level keys) against each candidate's `Dimensions:` entries — every present dimension must be expected by the config, and the candidate with the fewest unexplained expectations wins. Previously the first slot-match won, which could activate a different YAML's portal/GameRules config than the one the world was created with. YAMLs identical in both slots and custom dimension keys remain ambiguous (first match wins).
 - **Non-OTG dimensions in WorldPreset YAML** — `NonOTGWorldType` now works on `Nether:`, `End:` and `Dimensions:` entries (previously overworld-only). Any registered MC WorldPreset can be referenced (`minecraft:flat`, `minecraft:amplified`, modded e.g. Biomes O' Plenty), letting overworld-replacing worldgen mods run as separate dimensions instead. Non-OTG `Dimensions:` entries require a `DimensionName` (registered as `otg:<name>`) and support OTG portals (`PortalBlocks`/`PortalColor`/`PortalIgnitionSource`, YAML-only config) and per-dimension GameRules (applied over vanilla defaults). Invalid entries (both `PresetFolderName` and `NonOTGWorldType`, or missing `DimensionName`) are pruned with a log. `Seed` on non-OTG entries is ignored (world seed applies). Editor shows non-OTG entries read-only.
 
 **2026-07-14**

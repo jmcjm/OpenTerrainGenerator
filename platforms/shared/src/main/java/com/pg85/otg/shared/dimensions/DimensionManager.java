@@ -2,6 +2,7 @@ package com.pg85.otg.shared.dimensions;
 
 import com.pg85.otg.OTG;
 import com.pg85.otg.config.dimensions.WorldPresetConfig;
+import com.pg85.otg.constants.Constants;
 import com.pg85.otg.config.settings.preset.GameRuleSettings;
 import com.pg85.otg.dimensions.DimensionDatapack;
 import com.pg85.otg.dimensions.DimensionInfo;
@@ -26,8 +27,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -256,8 +259,14 @@ public class DimensionManager {
      * by matching the OTG preset names of the running overworld/nether/end dimensions
      * against WorldPreset configs on disk. Only runs on first server start.
      *
-     * Known limitation: if two WorldPreset YAMLs reference the same overworld/nether/end
-     * presets but differ in GameRules or custom dimensions, the first match wins.
+     * Candidates matching on the three vanilla slots are disambiguated by their custom
+     * dimensions: every otg:* level present in the world must be expected by the config,
+     * and among the survivors the one with the fewest unexplained expectations wins
+     * (a config may expect more dims than exist — e.g. a non-OTG entry whose WorldPreset
+     * wasn't installed was skipped at registration).
+     *
+     * Known limitation: two YAMLs with identical slots AND identical custom dimension
+     * keys (differing only in GameRules/portals) are still ambiguous — first match wins.
      * MC doesn't provide a callback for WorldPreset selection — this heuristic is the
      * pragmatic workaround.
      */
@@ -273,14 +282,47 @@ public class DimensionManager {
 
         if (overworldPreset == null && netherPreset == null && endPreset == null) return;
 
-        for (WorldPresetConfig config : configs) {
-            if (config.DisplayName == null) continue;
-            if (matchesDimensions(config, overworldPreset, netherPreset, endPreset)) {
-                storage.setWorldPreset(config.DisplayName);
-                OTGLog.info("Detected WorldPreset '{}' for this world", config.DisplayName);
-                return;
+        // Custom OTG dimensions actually present in this world (otg:* level keys).
+        Set<String> presentCustomDims = new HashSet<>();
+        for (ResourceKey<Level> levelKey : server.levelKeys()) {
+            if (Constants.MOD_ID_SHORT.equals(levelKey.location().getNamespace())) {
+                presentCustomDims.add(levelKey.location().getPath());
             }
         }
+
+        WorldPresetConfig best = null;
+        int bestSurplus = Integer.MAX_VALUE;
+        for (WorldPresetConfig config : configs) {
+            if (config.DisplayName == null) continue;
+            if (!matchesDimensions(config, overworldPreset, netherPreset, endPreset)) continue;
+
+            Set<String> expected = expectedCustomDimKeys(config);
+            if (!expected.containsAll(presentCustomDims)) continue;
+
+            int surplus = expected.size() - presentCustomDims.size();
+            if (surplus < bestSurplus) {
+                best = config;
+                bestSurplus = surplus;
+            }
+        }
+
+        if (best != null) {
+            storage.setWorldPreset(best.DisplayName);
+            OTGLog.info("Detected WorldPreset '{}' for this world", best.DisplayName);
+        }
+    }
+
+    /** Normalized otg:* level-key paths this config's custom Dimensions entries produce. */
+    private static Set<String> expectedCustomDimKeys(WorldPresetConfig config) {
+        Set<String> keys = new HashSet<>();
+        if (config.Dimensions == null) return keys;
+        for (WorldPresetConfig.OTGDimension dim : config.Dimensions) {
+            String rawName = dim.hasPreset() ? dim.PresetFolderName : dim.DimensionName;
+            if (rawName != null && !rawName.isBlank()) {
+                keys.add(DimensionNameUtils.normalizeName(rawName));
+            }
+        }
+        return keys;
     }
 
     private static boolean matchesDimensions(WorldPresetConfig config,
