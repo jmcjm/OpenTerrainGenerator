@@ -337,17 +337,26 @@ public class DimensionManager {
 
     private static boolean matchesDimensions(WorldPresetConfig config,
             String overworldPreset, String netherPreset, String endPreset) {
-        // Non-OTG slot entries (NonOTGWorldType) have PresetFolderName == null and their
-        // levels report null from getOTGPresetFolderName() — they match by both being null.
-        String configOverworld = (config.Overworld != null && !config.Overworld.isNonOTG())
-            ? config.Overworld.PresetFolderName : null;
-        if (!Objects.equals(configOverworld, overworldPreset)) return false;
+        // Non-OTG slot entries skip the comparison entirely: NonOTGWorldType can reference
+        // any registered WorldPreset — including OTG-composed ones (otg:*) — so the running
+        // generator may or may not be an OTG preset. The custom-dimension filter in
+        // detectWorldPreset keeps otherwise-ambiguous configs apart.
+        if (config.Overworld == null || !config.Overworld.isNonOTG()) {
+            String configOverworld = (config.Overworld != null) ? config.Overworld.PresetFolderName : null;
+            if (!Objects.equals(configOverworld, overworldPreset)) return false;
+        }
 
-        String configNether = (config.Nether != null) ? config.Nether.PresetFolderName : null;
-        if (!Objects.equals(configNether, netherPreset)) return false;
+        if (config.Nether == null || !config.Nether.isNonOTG()) {
+            String configNether = (config.Nether != null) ? config.Nether.PresetFolderName : null;
+            if (!Objects.equals(configNether, netherPreset)) return false;
+        }
 
-        String configEnd = (config.End != null) ? config.End.PresetFolderName : null;
-        return Objects.equals(configEnd, endPreset);
+        if (config.End == null || !config.End.isNonOTG()) {
+            String configEnd = (config.End != null) ? config.End.PresetFolderName : null;
+            if (!Objects.equals(configEnd, endPreset)) return false;
+        }
+
+        return true;
     }
 
     private static @Nullable String getOTGPresetFolderName(ServerLevel level) {

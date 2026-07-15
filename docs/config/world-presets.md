@@ -107,7 +107,7 @@ Additional dimension fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `NonOTGWorldType` | `string` | Use a non-OTG generator for this entry. Looks up the value as a WorldPreset in MC's registry. Vanilla types: `flat`, `amplified`, `large_biomes`, `normal`. Modded types: use `modid:name` (e.g. `biomesoplenty:biomesoplenty`). Works on `Overworld`, `Nether`, `End` and `Dimensions` entries. On `Nether`/`End`, the referenced preset's nether/end dimension is used; custom `Dimensions` entries use its overworld generator. If the preset is not found: slots fall back to vanilla, custom entries are skipped. Mutually exclusive with `PresetFolderName`. |
+| `NonOTGWorldType` | `string` | Use a non-OTG generator for this entry. Looks up the value as a WorldPreset in MC's registry. Vanilla types: `flat`, `amplified`, `large_biomes`, `normal`. Modded types: use `modid:name` (e.g. `biomesoplenty:biomesoplenty`). Works on `Overworld`, `Nether`, `End` and `Dimensions` entries — the referenced preset's main (overworld) generator is always what gets mounted, so `flat` in the `Nether` slot means a flat nether, same semantics as an OTG preset in a slot. If the preset is not found: slots fall back to vanilla, custom entries are skipped. Mutually exclusive with `PresetFolderName`. |
 | `DimensionName` | `string` | Required for non-OTG `Dimensions` entries: the dimension's registry name (registered as `otg:<name>`). Ignored on `Overworld`/`Nether`/`End` (their keys are fixed) and optional for OTG entries (defaults to the preset folder name). |
 | `NonOTGGeneratorSettings` | `string` | Reserved for future use. Currently not implemented. |
 
@@ -223,7 +223,7 @@ Notes:
 - `Seed` is ignored on non-OTG entries — vanilla and modded generators always use the world seed.
 - A non-OTG entry without `PortalBlocks` gets no OTG portal (reachable via commands or other mods only).
 - GameRules on non-OTG entries apply on top of vanilla defaults (there is no DimensionPreset ini layer).
-- On `Nether`/`End` slots, `NonOTGWorldType` extracts that preset's nether/end dimension — useful mainly for modded WorldPresets that define custom nether/end generation (vanilla presets like `flat` carry the standard nether/end).
+- On `Nether`/`End` slots, `NonOTGWorldType` mounts the referenced preset's overworld generator in that slot (`"minecraft:flat"` as the nether = a flat nether). The slot keeps its vanilla key, so nether/end portals lead there. Note the mounted stem carries the referenced preset's dimension type (skylight, height, etc.) — a flat nether has an overworld-like sky, and an End slot without the end dimension type has no dragon fight.
 
 ---
 

@@ -188,7 +188,7 @@ public class WorldPresetRegistrar {
                 if (dim.isNonOTG()) {
                     // Non-OTG generator mounted as a custom dimension: use the referenced
                     // WorldPreset's overworld stem (that's the "main" generator of any preset).
-                    stem = lookupWorldPresetStem(dim.NonOTGWorldType, LevelStem.OVERWORLD, loaders);
+                    stem = lookupWorldPresetStem(dim.NonOTGWorldType, loaders);
                     if (stem == null) {
                         OTGLog.warn("Non-OTG dimension '{}': WorldPreset '{}' not found, skipping dimension",
                             dim.DimensionName, dim.NonOTGWorldType);
@@ -269,10 +269,12 @@ public class WorldPresetRegistrar {
             HolderGetter<NoiseGeneratorSettings> noiseSettings,
             Registry<Biome> biomeRegistry
     ) {
-        // For a slot with a specific world type: look up the MC WorldPreset by name
-        // and extract the matching LevelStem from it. Delegates 100% to vanilla/mods.
+        // For a slot with a specific world type: look up the MC WorldPreset by name and
+        // mount its MAIN (overworld) generator in this slot — "flat" as the nether means
+        // a flat nether, same semantics as an OTG preset in the slot. Delegates 100% to
+        // vanilla/mods.
         if (worldType != null && !worldType.isBlank()) {
-            LevelStem fromPreset = lookupWorldPresetStem(worldType, stemKey, loaders);
+            LevelStem fromPreset = lookupWorldPresetStem(worldType, loaders);
             if (fromPreset != null) {
                 return fromPreset;
             }
@@ -284,14 +286,14 @@ public class WorldPresetRegistrar {
     }
 
     /**
-     * Looks up a WorldPreset by name in MC's registry and extracts the LevelStem for the
-     * given slot. Supports vanilla types ("flat", "amplified", "large_biomes") and modded
-     * types (any mod that registers a WorldPreset, e.g. "biomesoplenty:biomesoplenty").
-     * Custom OTG dimensions use the referenced preset's OVERWORLD stem.
+     * Looks up a WorldPreset by name in MC's registry and extracts its main (overworld)
+     * LevelStem. Supports vanilla types ("flat", "amplified", "large_biomes") and modded
+     * types (any mod that registers a WorldPreset). The overworld stem is what the
+     * preset IS — mounting it in a Nether/End slot or as a custom dimension gives that
+     * generation there, consistent with how OTG presets behave in any slot.
      */
     private static LevelStem lookupWorldPresetStem(
             String worldType,
-            ResourceKey<LevelStem> slot,
             List<RegistryDataLoader.Loader<?>> loaders
     ) {
         String type = worldType.trim().toLowerCase(Locale.ROOT);
@@ -314,14 +316,14 @@ public class WorldPresetRegistrar {
             return null;
         }
 
-        LevelStem stem = holder.get().value().dimensions.get(slot);
-        if (stem == null) {
-            OTGLog.warn("WorldPreset '{}' has no {} dimension", loc, slot.location());
+        Optional<LevelStem> stem = holder.get().value().overworld();
+        if (stem.isEmpty()) {
+            OTGLog.warn("WorldPreset '{}' has no overworld dimension", loc);
             return null;
         }
 
-        OTGLog.info("Using {} from WorldPreset '{}' for NonOTGWorldType", slot.location(), loc);
-        return stem;
+        OTGLog.info("Using overworld generator from WorldPreset '{}' for NonOTGWorldType", loc);
+        return stem.get();
     }
 
     /**

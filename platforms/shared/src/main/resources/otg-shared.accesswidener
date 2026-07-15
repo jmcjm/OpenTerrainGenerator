@@ -12,6 +12,3 @@ accessible field net/minecraft/world/level/levelgen/RandomState noises Lnet/mine
 
 # NoiseRouterData.overworld() needed for OTGNoiseRouterBuilder fallback
 accessible method net/minecraft/world/level/levelgen/NoiseRouterData overworld (Lnet/minecraft/core/HolderGetter;Lnet/minecraft/core/HolderGetter;ZZ)Lnet/minecraft/world/level/levelgen/NoiseRouter;
-
-# WorldPreset.dimensions needed for WorldPresetRegistrar slot-aware NonOTGWorldType lookup
-accessible field net/minecraft/world/level/levelgen/presets/WorldPreset dimensions Ljava/util/Map;
