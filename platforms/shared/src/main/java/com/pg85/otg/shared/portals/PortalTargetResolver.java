@@ -138,6 +138,14 @@ public final class PortalTargetResolver {
 
     private static String claimColor(String rawColor, List<String> usedColors) {
         String color = DimensionNameUtils.normalizeColor(rawColor);
+        // A portal block exists only for colors in PortalColors.COLORS. An unknown color
+        // would silently resolve to the "default" block, whose own color then no longer
+        // matches this target's color — breaking the teleport round-trip. Coerce + warn.
+        if (!PortalColors.isValidColor(color)) {
+            OTGLog.warn("Invalid PortalColor '{}' — valid colors: {}. Using 'default'",
+                rawColor, PortalColors.COLORS);
+            color = PortalColors.COLORS.get(0);
+        }
         while (usedColors.contains(color)) {
             color = PortalColors.getNextColor(color);
         }
