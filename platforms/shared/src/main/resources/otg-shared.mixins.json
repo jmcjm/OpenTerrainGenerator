@@ -12,6 +12,7 @@
     "MappedRegistryAccessor",
     "MinecraftServerAccessor",
     "ServerPlayerRespawnMixin",
+    "ServerPlayerRestoreFromMixin",
     "WorldPresetTagsMixin"
   ]
 }
