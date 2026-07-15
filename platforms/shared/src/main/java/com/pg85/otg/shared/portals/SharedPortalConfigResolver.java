@@ -2,7 +2,6 @@ package com.pg85.otg.shared.portals;
 
 import com.pg85.otg.config.dimensions.WorldPresetConfig;
 import com.pg85.otg.config.dimensions.WorldPresetConfig.OTGDimension;
-import com.pg85.otg.config.settings.preset.PortalSettings;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.shared.materials.IBlockStateMaterial;
 import com.pg85.otg.presets.DimensionPreset;
@@ -15,15 +14,10 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public final class SharedPortalConfigResolver {
 
     private SharedPortalConfigResolver() {}
-
-    public static Optional<PortalSettings> findSettingsByColor(String portalColor) {
-        return PortalConfigLookup.findSettingsByColor(portalColor);
-    }
 
     public static boolean isFrameBlock(Block block, List<LocalMaterialData> frameBlocks) {
         if (frameBlocks == null || frameBlocks.isEmpty()) {
