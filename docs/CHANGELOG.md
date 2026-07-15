@@ -1,5 +1,9 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-15**
+
+- **Non-OTG dimensions in WorldPreset YAML** — `NonOTGWorldType` now works on `Nether:`, `End:` and `Dimensions:` entries (previously overworld-only). Any registered MC WorldPreset can be referenced (`minecraft:flat`, `minecraft:amplified`, modded e.g. Biomes O' Plenty), letting overworld-replacing worldgen mods run as separate dimensions instead. Non-OTG `Dimensions:` entries require a `DimensionName` (registered as `otg:<name>`) and support OTG portals (`PortalBlocks`/`PortalColor`/`PortalIgnitionSource`, YAML-only config) and per-dimension GameRules (applied over vanilla defaults). Invalid entries (both `PresetFolderName` and `NonOTGWorldType`, or missing `DimensionName`) are pruned with a log. `Seed` on non-OTG entries is ignored (world seed applies). Editor shows non-OTG entries read-only.
+
 **2026-07-14**
 
 - **Fixed: production Fabric jar crashed on startup with `InvalidAccessorException`.**
