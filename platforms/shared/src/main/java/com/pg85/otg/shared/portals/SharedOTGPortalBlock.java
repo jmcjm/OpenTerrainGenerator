@@ -1,14 +1,11 @@
 package com.pg85.otg.shared.portals;
 
 import com.pg85.otg.OTG;
-import com.pg85.otg.config.dimensions.WorldPresetConfig;
-import com.pg85.otg.config.dimensions.WorldPresetConfig.OTGDimension;
 import com.pg85.otg.shared.commands.OTGCommandRegistrar;
 import com.pg85.otg.shared.dimensions.DimensionKeys;
 import com.pg85.otg.shared.dimensions.DimensionManager;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.presets.DimensionPreset;
-import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.BlockPos;
@@ -92,34 +89,37 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
 
         if (destination != null && !entity.isPassenger()) {
             entity.setPortalCooldown();
-            SharedOTGTeleporter.teleport(entity, destination, this.portalColor);
+            // The destination-side portal is the return trip, so it carries the color
+            // of the level the entity is leaving - that way travelling back finds the
+            // portal the player originally came from.
+            String returnColor = getPortalColorOfLevel(serverLevel);
+            SharedOTGTeleporter.teleport(entity, destination, returnColor);
         }
     }
 
     private ServerLevel findDestination(Entity entity, ServerLevel currentLevel) {
         MinecraftServer server = currentLevel.getServer();
 
-        if (currentLevel.dimension() == Level.OVERWORLD) {
-            return findOTGDimensionByColor(server, this.portalColor);
-        }
+        String overworldColor = getPortalColorOfLevel(server.overworld());
 
-        if (currentLevel.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator) {
-            WorldPresetConfig activeWorldPreset = WorldPresetPortalResolver.getActiveWorldPreset();
-            String dimColor = getEffectivePortalColor(currentLevel, activeWorldPreset);
-            if (this.portalColor.equals(dimColor)) {
+        if (currentLevel.dimension() == Level.OVERWORLD) {
+            // A portal of the overworld preset's own color, standing in the overworld,
+            // leads nowhere - don't spawn a second dimension of the overworld's preset.
+            if (this.portalColor.equals(overworldColor)) {
+                return null;
+            }
+        } else {
+            // A portal of the dimension's own color leads back to the overworld,
+            // and so does a portal whose color belongs to the overworld's preset.
+            if (this.portalColor.equals(getPortalColorOfLevel(currentLevel))
+                    || this.portalColor.equals(overworldColor)) {
                 return server.overworld();
             }
-            return null;
         }
 
-        // Non-OTG custom dimension: return to the overworld if this level is a portal
-        // target whose effective color matches this portal.
-        Optional<PortalTarget> target = PortalTargetResolver.findByLevelKey(currentLevel.dimension());
-        if (target.isPresent() && this.portalColor.equals(target.get().color())) {
-            return server.overworld();
-        }
-
-        return null;
+        // Any other color travels to the dimension the color belongs to (cross-dimension).
+        ServerLevel target = findOTGDimensionByColor(server, this.portalColor);
+        return target == currentLevel ? server.overworld() : target;
     }
 
     private ServerLevel findOTGDimensionByColor(MinecraftServer server, String targetColor) {
@@ -179,27 +179,24 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
     }
 
     /**
-     * Returns the effective portal color for a level, considering YAML overrides (R1).
-     * Falls back to the DimensionPreset color if no YAML override is present.
+     * The effective (deduplicated) portal color a level's own portals carry: the color
+     * of its PortalTarget — via the preset for OTG levels (works in any slot), via the
+     * level key for non-OTG custom dimensions. Vanilla levels have no color ("default").
      */
-    private String getEffectivePortalColor(ServerLevel level, WorldPresetConfig activeWorldPreset) {
+    private String getPortalColorOfLevel(ServerLevel level) {
         if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
-            String baseColor = gen.getPortalColor();
-
-            // R1: Check for YAML color override
-            if (activeWorldPreset != null) {
-                DimensionPreset preset = gen.getPreset();
-                if (preset != null) {
-                    OTGDimension dimEntry = WorldPresetPortalResolver.findDimensionEntry(activeWorldPreset, preset.getFolderName());
-                    if (dimEntry != null && WorldPresetPortalResolver.hasOverride(dimEntry.PortalColor)) {
-                        baseColor = dimEntry.PortalColor;
-                    }
+            DimensionPreset preset = gen.getPreset();
+            if (preset != null) {
+                Optional<PortalTarget> target = PortalTargetResolver.findByPresetFolder(preset.getFolderName());
+                if (target.isPresent()) {
+                    return target.get().color();
                 }
             }
-
-            return DimensionNameUtils.normalizeColor(baseColor);
+            return "default";
         }
-        return "default";
+        return PortalTargetResolver.findByLevelKey(level.dimension())
+                .map(PortalTarget::color)
+                .orElse("default");
     }
 
     public static boolean tryCreatePortal(LevelAccessor level, BlockPos pos, List<LocalMaterialData> frameBlocks, String portalColor) {

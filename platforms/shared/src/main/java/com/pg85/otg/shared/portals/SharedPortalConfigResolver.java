@@ -1,10 +1,7 @@
 package com.pg85.otg.shared.portals;
 
-import com.pg85.otg.config.dimensions.WorldPresetConfig;
-import com.pg85.otg.config.dimensions.WorldPresetConfig.OTGDimension;
 import com.pg85.otg.shared.gen.SharedOTGChunkGenerator;
 import com.pg85.otg.shared.materials.IBlockStateMaterial;
-import com.pg85.otg.presets.DimensionPreset;
 import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.materials.LocalMaterialData;
 import net.minecraft.server.level.ServerLevel;
@@ -12,8 +9,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public final class SharedPortalConfigResolver {
 
@@ -37,23 +34,20 @@ public final class SharedPortalConfigResolver {
     }
 
     public static BlockState getFrameBlock(ServerLevel level, String portalColor) {
-        if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
-            // Check YAML override first
-            WorldPresetConfig activeWorldPreset = WorldPresetPortalResolver.getActiveWorldPreset();
-            if (activeWorldPreset != null) {
-                DimensionPreset preset = gen.getPreset();
-                if (preset != null) {
-                    OTGDimension dimEntry = WorldPresetPortalResolver.findDimensionEntry(activeWorldPreset, preset.getFolderName());
-                    if (dimEntry != null) {
-                        ArrayList<LocalMaterialData> overrideBlocks = WorldPresetPortalResolver.parsePortalBlocks(dimEntry.PortalBlocks);
-                        if (overrideBlocks != null && overrideBlocks.get(0) instanceof IBlockStateMaterial blockMaterial) {
-                            return blockMaterial.getState();
-                        }
-                    }
-                }
-            }
+        // The frame of an auto-created portal matches the preset/dimension the color
+        // belongs to, so a portal leading to Biome Bundle is built from Biome Bundle's
+        // PortalBlocks regardless of which level it stands in. PortalTarget frame blocks
+        // already carry the YAML overrides (R1).
+        Optional<BlockState> colorFrame = PortalTargetResolver.findByColor(portalColor)
+                .filter(t -> !t.frameBlocks().isEmpty()
+                        && t.frameBlocks().get(0) instanceof IBlockStateMaterial)
+                .map(t -> ((IBlockStateMaterial) t.frameBlocks().get(0)).getState());
+        if (colorFrame.isPresent()) {
+            return colorFrame.get();
+        }
 
-            // Fall back to DimensionPreset
+        // Fall back to the level's own preset blocks, then quartz.
+        if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
             List<LocalMaterialData> portalBlocks = gen.getPortalBlocks();
             if (portalBlocks != null && !portalBlocks.isEmpty()
                     && portalBlocks.get(0) instanceof IBlockStateMaterial blockMaterial) {
@@ -61,29 +55,21 @@ public final class SharedPortalConfigResolver {
             }
         }
 
-        return PortalTargetResolver.findByColor(portalColor)
-                .filter(t -> !t.frameBlocks().isEmpty()
-                        && t.frameBlocks().get(0) instanceof IBlockStateMaterial)
-                .map(t -> ((IBlockStateMaterial) t.frameBlocks().get(0)).getState())
-                .orElse(Blocks.QUARTZ_BLOCK.defaultBlockState());
+        return Blocks.QUARTZ_BLOCK.defaultBlockState();
     }
 
     public static int getPortalMinWidth(ServerLevel level, String portalColor) {
-        if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
-            return Math.max(2, gen.getPortalMinWidth());
-        }
         return PortalTargetResolver.findByColor(portalColor)
                 .map(t -> Math.max(2, t.minWidth()))
-                .orElse(2);
+                .orElseGet(() -> level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen
+                        ? Math.max(2, gen.getPortalMinWidth()) : 2);
     }
 
     public static int getPortalMinHeight(ServerLevel level, String portalColor) {
-        if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
-            return Math.max(3, gen.getPortalMinHeight());
-        }
         return PortalTargetResolver.findByColor(portalColor)
                 .map(t -> Math.max(3, t.minHeight()))
-                .orElse(3);
+                .orElseGet(() -> level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen
+                        ? Math.max(3, gen.getPortalMinHeight()) : 3);
     }
 
     public static String normalizeColor(String color) {

@@ -136,6 +136,12 @@ public final class PortalTargetResolver {
                 .findFirst();
     }
 
+    public static Optional<PortalTarget> findByPresetFolder(String presetFolderName) {
+        return resolveTargets().stream()
+                .filter(t -> presetFolderName.equals(t.presetFolderName()))
+                .findFirst();
+    }
+
     private static String claimColor(String rawColor, List<String> usedColors) {
         String color = DimensionNameUtils.normalizeColor(rawColor);
         // A portal block exists only for colors in PortalColors.COLORS. An unknown color
