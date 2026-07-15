@@ -21,10 +21,6 @@ public final class SharedPortalConfigResolver {
 
     private SharedPortalConfigResolver() {}
 
-    public static Optional<DimensionPreset> findPresetByColor(String portalColor) {
-        return PortalConfigLookup.findPresetByColor(portalColor);
-    }
-
     public static Optional<PortalSettings> findSettingsByColor(String portalColor) {
         return PortalConfigLookup.findSettingsByColor(portalColor);
     }
@@ -71,10 +67,10 @@ public final class SharedPortalConfigResolver {
             }
         }
 
-        return findSettingsByColor(portalColor)
-                .filter(s -> s.getPortalBlocks() != null && !s.getPortalBlocks().isEmpty()
-                        && s.getPortalBlocks().get(0) instanceof IBlockStateMaterial)
-                .map(s -> ((IBlockStateMaterial) s.getPortalBlocks().get(0)).getState())
+        return PortalTargetResolver.findByColor(portalColor)
+                .filter(t -> !t.frameBlocks().isEmpty()
+                        && t.frameBlocks().get(0) instanceof IBlockStateMaterial)
+                .map(t -> ((IBlockStateMaterial) t.frameBlocks().get(0)).getState())
                 .orElse(Blocks.QUARTZ_BLOCK.defaultBlockState());
     }
 
@@ -82,8 +78,8 @@ public final class SharedPortalConfigResolver {
         if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
             return Math.max(2, gen.getPortalMinWidth());
         }
-        return findSettingsByColor(portalColor)
-                .map(PortalConfigLookup::getPortalMinWidth)
+        return PortalTargetResolver.findByColor(portalColor)
+                .map(t -> Math.max(2, t.minWidth()))
                 .orElse(2);
     }
 
@@ -91,8 +87,8 @@ public final class SharedPortalConfigResolver {
         if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator gen) {
             return Math.max(3, gen.getPortalMinHeight());
         }
-        return findSettingsByColor(portalColor)
-                .map(PortalConfigLookup::getPortalMinHeight)
+        return PortalTargetResolver.findByColor(portalColor)
+                .map(t -> Math.max(3, t.minHeight()))
                 .orElse(3);
     }
 

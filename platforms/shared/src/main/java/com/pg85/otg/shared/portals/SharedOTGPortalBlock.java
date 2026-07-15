@@ -1,5 +1,6 @@
 package com.pg85.otg.shared.portals;
 
+import com.pg85.otg.OTG;
 import com.pg85.otg.config.dimensions.WorldPresetConfig;
 import com.pg85.otg.config.dimensions.WorldPresetConfig.OTGDimension;
 import com.pg85.otg.shared.commands.OTGCommandRegistrar;
@@ -25,7 +26,6 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 
 public class SharedOTGPortalBlock extends NetherPortalBlock {
@@ -109,47 +109,42 @@ public class SharedOTGPortalBlock extends NetherPortalBlock {
             if (this.portalColor.equals(dimColor)) {
                 return server.overworld();
             }
+            return null;
+        }
+
+        // Non-OTG custom dimension: return to the overworld if this level is a portal
+        // target whose effective color matches this portal.
+        Optional<PortalTarget> target = PortalTargetResolver.findByLevelKey(currentLevel.dimension());
+        if (target.isPresent() && this.portalColor.equals(target.get().color())) {
+            return server.overworld();
         }
 
         return null;
     }
 
     private ServerLevel findOTGDimensionByColor(MinecraftServer server, String targetColor) {
-        WorldPresetConfig activeWorldPreset = WorldPresetPortalResolver.getActiveWorldPreset();
-        Set<String> allowedPresets = WorldPresetPortalResolver.getAllowedPresetFolders(activeWorldPreset);
+        Optional<PortalTarget> targetOpt = PortalTargetResolver.findByColor(targetColor);
+        if (targetOpt.isEmpty()) {
+            return null;
+        }
+        PortalTarget target = targetOpt.get();
 
-        for (ServerLevel level : server.getAllLevels()) {
-            if (level.dimension() == Level.OVERWORLD ||
-                level.dimension() == Level.NETHER ||
-                level.dimension() == Level.END) {
-                continue;
-            }
-
-            if (level.getChunkSource().getGenerator() instanceof SharedOTGChunkGenerator otgGen) {
-                // R2: Skip levels whose preset isn't in the allowed set
-                DimensionPreset preset = otgGen.getPreset();
-                if (allowedPresets != null && preset != null && !allowedPresets.contains(preset.getFolderName())) {
-                    continue;
-                }
-
-                // R1: Use effective color (with YAML override)
-                String dimColor = getEffectivePortalColor(level, activeWorldPreset);
-                if (targetColor.equals(dimColor)) {
-                    return level;
-                }
-            }
+        ServerLevel existing = server.getLevel(target.levelKey());
+        if (existing != null) {
+            return existing;
         }
 
-        return findAndLoadDimensionByColor(server, targetColor);
-    }
-
-    private ServerLevel findAndLoadDimensionByColor(MinecraftServer server, String targetColor) {
-        Optional<DimensionPreset> presetOpt = SharedPortalConfigResolver.findPresetByColor(targetColor);
-        if (presetOpt.isEmpty()) {
+        if (target.isNonOTG()) {
+            // Non-OTG dimensions only exist if they were part of the world's level stems
+            // at creation; there is no runtime-creation path for them.
             return null;
         }
 
-        DimensionPreset preset = presetOpt.get();
+        DimensionPreset preset = OTG.getEngine().getDimensionPresetLoader()
+            .getDimensionPresetByFolderName(target.presetFolderName());
+        if (preset == null) {
+            return null;
+        }
         return loadOrCreateDimension(server, preset);
     }
 
