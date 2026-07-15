@@ -60,8 +60,8 @@ Dimensions:
     PortalIgnitionSource: "minecraft:flint_and_steel"
     RespawnInDimension: true
     GameRules:                        # Per-dimension overrides
-      DoDaylightCycle: false
-      DoWeatherCycle: false
+      KeepInventory: true
+      MobGriefing: false
 
 # World settings
 Settings:
@@ -107,7 +107,7 @@ Additional dimension fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `NonOTGWorldType` | `string` | Use a non-OTG generator for this entry. Looks up the value as a WorldPreset in MC's registry. Vanilla types: `flat`, `amplified`, `large_biomes`, `normal`. Modded types: use `modid:name` (e.g. `biomesoplenty:biomesoplenty`). Works on `Overworld`, `Nether`, `End` and `Dimensions` entries — the referenced preset's main (overworld) generator is always what gets mounted, so `flat` in the `Nether` slot means a flat nether, same semantics as an OTG preset in a slot. If the preset is not found: slots fall back to vanilla, custom entries are skipped. Mutually exclusive with `PresetFolderName`. |
+| `NonOTGWorldType` | `string` | Use a non-OTG generator for this entry. Looks up the value as a WorldPreset in MC's registry. Vanilla types: `flat`, `amplified`, `large_biomes`, `normal`. Modded types: use `modid:name`, but only if the mod actually registers its own world preset — many worldgen mods (Biomes O' Plenty, for one) don't; they inject biomes into the vanilla overworld via TerraBlender, so you reference the vanilla type they inject into (`normal`) instead. Works on `Overworld`, `Nether`, `End` and `Dimensions` entries — the referenced preset's main (overworld) generator is always what gets mounted, so `flat` in the `Nether` slot means a flat nether, same semantics as an OTG preset in a slot. If the preset is not found: slots fall back to vanilla, custom entries are skipped. Mutually exclusive with `PresetFolderName`. |
 | `DimensionName` | `string` | Required for non-OTG `Dimensions` entries: the dimension's registry name (registered as `otg:<name>`). Ignored on `Overworld`/`Nether`/`End` (their keys are fixed) and optional for OTG entries (defaults to the preset folder name). |
 | `NonOTGGeneratorSettings` | `string` | Reserved for future use. Currently not implemented. |
 
@@ -153,14 +153,29 @@ Integer rules:
 
 `SpawnRadius`, `RandomTickSpeed`, `MaxEntityCramming`, `MaxCommandChainLength`, `MaxCommandForkCount`, `CommandModificationBlockLimit`, `PlayersNetherPortalDefaultDelay`, `PlayersNetherPortalCreativeDelay`, `PlayersSleepingPercentage`, `SnowAccumulationHeight`, `SpawnChunkRadius`
 
-!!! note "Global-state rules"
-    Day time and weather are stored **once per world save** and advanced only by the
-    overworld — Minecraft has no per-dimension clock. A per-dimension
-    `DoDaylightCycle`/`DoWeatherCycle` override therefore only takes effect when set on
-    the **Overworld** entry; on other dimensions the rule value is applied (visible via
-    `/gamerule`) but time and weather keep following the overworld. For a dimension with
-    frozen time, use a DimensionPreset with `FixedTime` in `DimensionPresetConfig.ini`
-    instead.
+!!! note "Overworld-scoped rules"
+    A handful of vanilla GameRules are read from the **overworld** no matter which
+    dimension you set them on, so a per-dimension override on a nether/end/custom entry has
+    no effect. Set these on the **Overworld** entry (or world-level):
+
+    - **`DoDaylightCycle`, `DoWeatherCycle`** — time and weather are stored once per world
+      save and advanced only by the overworld; Minecraft has no per-dimension clock. Other
+      dimensions show the value via `/gamerule` but keep following the overworld. For a
+      dimension with frozen time, use `FixedTime` in its `DimensionPresetConfig.ini`.
+    - **`DoPatrolSpawning`, `DoTraderSpawning`, `DoInsomnia`** — the pillager-patrol,
+      wandering-trader and phantom spawners only ever run on the overworld, so the rule is
+      only read from the overworld's copy.
+    - **`SpawnRadius`, `SpawnChunkRadius`** — the world spawn and its spawn chunks live in
+      the overworld.
+    - **`MaxCommandChainLength`, `MaxCommandForkCount`, `LogAdminCommands`** — read from the
+      server's (overworld) rules when running `/function` and command chains. Command
+      *blocks* read `MaxCommandChainLength`, `CommandBlockOutput` and `SendCommandFeedback`
+      from their own level, so those still respond per-dimension.
+    - **`PlayersSleepingPercentage`** — in vanilla only the overworld allows sleeping (beds
+      explode elsewhere), so a per-dimension value never comes into play.
+
+    Every other rule is read from the dimension it applies to and honours a per-entry
+    override.
 
 ---
 
@@ -210,13 +225,18 @@ Overworld:
 
 Dimensions:
 - DimensionName: "bop_world"
-  NonOTGWorldType: "biomesoplenty:biomesoplenty"
-  PortalColor: "purple"
+  NonOTGWorldType: "minecraft:normal"
+  PortalColor: "crystalblue"
   PortalBlocks: "minecraft:amethyst_block"
   PortalIgnitionSource: "minecraft:flint_and_steel"
   GameRules:
     KeepInventory: true
 ```
+
+Biomes O' Plenty doesn't register its own world preset — TerraBlender injects its biomes
+into the vanilla overworld generator — so `NonOTGWorldType: "minecraft:normal"` is what
+picks BoP's biomes up here. A mod that *does* register its own world preset can be named
+directly as `modid:name`.
 
 Notes:
 
