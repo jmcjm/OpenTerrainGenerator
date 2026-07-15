@@ -193,10 +193,7 @@ public class ManageWorldPresetsScreen extends Screen {
 
     private String describeSlot(WorldPresetConfig.OTGDimension dim) {
         if (dim == null) return "vanilla";
-        if (dim instanceof WorldPresetConfig.OTGOverWorld ow
-            && ow.NonOTGWorldType != null && !ow.NonOTGWorldType.isBlank()) {
-            return "non-OTG: " + ow.NonOTGWorldType;
-        }
+        if (dim.isNonOTG()) return dim.NonOTGWorldType;
         if (dim.PresetFolderName == null || dim.PresetFolderName.isBlank()) return "vanilla";
         return dim.PresetFolderName;
     }

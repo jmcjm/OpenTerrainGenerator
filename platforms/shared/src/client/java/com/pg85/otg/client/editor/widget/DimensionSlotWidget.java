@@ -64,6 +64,17 @@ public class DimensionSlotWidget {
         var font = Minecraft.getInstance().font;
         int row = y;
 
+        if (!allowNonOTG && dim.isNonOTG()) {
+            String name = dim.DimensionName != null ? dim.DimensionName + " — " : "";
+            Button label = Button.builder(
+                Component.literal(name + "Non-OTG: " + dim.NonOTGWorldType),
+                b -> {}
+            ).bounds(x, row, width, 18).build();
+            label.active = false;
+            addButton.accept(label);
+            return; // read-only: editing non-OTG entries is a follow-up feature
+        }
+
         // Mode selector (radios as buttons)
         if (allowNonOTG) {
             Button otgBtn = Button.builder(
@@ -105,7 +116,9 @@ public class DimensionSlotWidget {
             addEditBox.accept(settingsBox);
             row += 24;
         } else if (!usingVanilla) {
-            if ((dim.PresetFolderName == null || dim.PresetFolderName.isBlank()) && !otgPresets.isEmpty()) {
+            if (!dim.isNonOTG()
+                    && (dim.PresetFolderName == null || dim.PresetFolderName.isBlank())
+                    && !otgPresets.isEmpty()) {
                 dim.PresetFolderName = otgPresets.get(0);
                 onChanged.run();
             }
@@ -208,6 +221,10 @@ public class DimensionSlotWidget {
     }
 
     public void render(GuiGraphics g, int mouseX, int mouseY) {
+        if (!allowNonOTG && dim.isNonOTG()) {
+            return; // read-only label already rendered as a widget button in init()
+        }
+
         var font = Minecraft.getInstance().font;
         int row = y;
 

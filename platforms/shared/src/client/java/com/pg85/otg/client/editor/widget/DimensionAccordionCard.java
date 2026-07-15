@@ -61,7 +61,8 @@ public class DimensionAccordionCard {
         this.renderedWidth = width;
 
         String label = (expanded ? "▼ " : "▶ ") +
-            (dim.PresetFolderName == null ? "(unset)" : dim.PresetFolderName);
+            (dim.isNonOTG() ? "Non-OTG: " + dim.NonOTGWorldType
+                : dim.PresetFolderName == null ? "(unset)" : dim.PresetFolderName);
         Button headerBtn = Button.builder(
             Component.literal(label),
             b -> onToggleExpand.run()

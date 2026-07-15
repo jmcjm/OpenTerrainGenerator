@@ -243,7 +243,9 @@ public class WorldPresetEditorScreen extends Screen {
                         dim.GameRules = isAnyRuleSet(updated) ? updated : null;
                         markDirty();
                     },
-                    "GameRules — " + (dim.PresetFolderName == null ? "(unset)" : dim.PresetFolderName)
+                    "GameRules — " + (dim.isNonOTG()
+                        ? (dim.DimensionName != null ? dim.DimensionName : "Non-OTG: " + dim.NonOTGWorldType)
+                        : dim.PresetFolderName == null ? "(unset)" : dim.PresetFolderName)
                 ));
             };
             Runnable onToggleExpand = () -> {
