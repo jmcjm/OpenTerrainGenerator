@@ -287,7 +287,7 @@ public class DimensionManager {
             String overworldPreset, String netherPreset, String endPreset) {
         // Non-OTG slot entries (NonOTGWorldType) have PresetFolderName == null and their
         // levels report null from getOTGPresetFolderName() — they match by both being null.
-        String configOverworld = (config.Overworld != null && config.Overworld.NonOTGWorldType == null)
+        String configOverworld = (config.Overworld != null && !config.Overworld.isNonOTG())
             ? config.Overworld.PresetFolderName : null;
         if (!Objects.equals(configOverworld, overworldPreset)) return false;
 

@@ -2,6 +2,7 @@ package com.pg85.otg.config;
 
 import com.pg85.otg.config.dimensions.WorldPresetConfig;
 import com.pg85.otg.loader.WorldPresetConfigLoader;
+import com.pg85.otg.util.DimensionNameUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -136,5 +137,38 @@ class WorldPresetConfigNonOTGTest {
             """);
         assertNotNull(config);
         assertEquals(2, config.Dimensions.size());
+    }
+
+    @Test
+    void normalizeNameSanitizesToValidRegistryChars() {
+        assertEquals("bop_world_", DimensionNameUtils.normalizeName("BoP World!"));
+        assertEquals("my_dim", DimensionNameUtils.normalizeName("my/dim"));
+    }
+
+    @Test
+    void dimensionsEntryWithNeitherSourceIsPruned() {
+        WorldPresetConfig config = WorldPresetConfigLoader.fromYamlString("""
+            DisplayName: "Test"
+            Overworld:
+              PresetFolderName: "Default"
+            Dimensions:
+            - Seed: 5
+            """);
+        assertNotNull(config);
+        assertTrue(config.Dimensions.isEmpty());
+    }
+
+    @Test
+    void dimensionNameOnSlotIsCleared() {
+        WorldPresetConfig config = WorldPresetConfigLoader.fromYamlString("""
+            DisplayName: "Test"
+            Overworld:
+              PresetFolderName: "Default"
+            Nether:
+              PresetFolderName: "X"
+              DimensionName: "foo"
+            """);
+        assertNotNull(config);
+        assertNull(config.Nether.DimensionName);
     }
 }

@@ -1,5 +1,6 @@
 package com.pg85.otg.dimensions;
 
+import com.pg85.otg.util.DimensionNameUtils;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +17,7 @@ public class DimensionInfo {
     private long created;
 
     public static DimensionInfo create(String presetName, long seed) {
-        String normalizedName = presetName.toLowerCase().replace(" ", "_");
+        String normalizedName = DimensionNameUtils.normalizeName(presetName);
         return DimensionInfo.builder()
                 .name(normalizedName)
                 .preset(presetName)

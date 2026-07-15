@@ -5,6 +5,7 @@ import com.pg85.otg.config.dimensions.WorldPresetConfig;
 import java.util.Locale;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.presets.DimensionPreset;
+import com.pg85.otg.util.DimensionNameUtils;
 import com.pg85.otg.util.OTGLog;
 import com.pg85.otg.util.minecraft.OTGDimensionType;
 import net.minecraft.core.*;
@@ -174,8 +175,7 @@ public class WorldPresetRegistrar {
             for (WorldPresetConfig.OTGDimension dim : config.Dimensions) {
                 String rawName = dim.hasPreset() ? dim.PresetFolderName : dim.DimensionName;
                 if (rawName == null || rawName.isBlank()) continue;
-                String normalizedName = rawName.toLowerCase(Locale.ROOT)
-                    .replaceAll("[^a-z0-9_.-]", "_");
+                String normalizedName = DimensionNameUtils.normalizeName(rawName);
                 if (!seenDimKeys.add(normalizedName)) {
                     OTGLog.warn("WorldPreset has duplicate custom dimension '{}', skipping duplicate", normalizedName);
                     continue;
