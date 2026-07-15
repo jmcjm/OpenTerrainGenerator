@@ -1,5 +1,9 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+### Release: 0.7.0-dev1
+
+---
+
 **2026-07-15**
 
 - **Fixed: dying in a dimension with `KeepInventory: true` deleted the inventory when respawning in a dimension without it.** Vanilla's `restoreFrom` reads keepInventory from the respawn dimension while `die()` reads it from the death dimension — with per-dimension GameRules the two can disagree: the death dimension kept the items (no drop), the respawn dimension refused to copy them (no restore), so they vanished. A mixin redirect makes `restoreFrom` use the death dimension's rules, which govern the whole death/respawn cycle.
