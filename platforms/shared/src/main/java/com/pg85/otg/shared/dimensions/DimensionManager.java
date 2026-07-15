@@ -285,6 +285,8 @@ public class DimensionManager {
 
     private static boolean matchesDimensions(WorldPresetConfig config,
             String overworldPreset, String netherPreset, String endPreset) {
+        // Non-OTG slot entries (NonOTGWorldType) have PresetFolderName == null and their
+        // levels report null from getOTGPresetFolderName() — they match by both being null.
         String configOverworld = (config.Overworld != null && config.Overworld.NonOTGWorldType == null)
             ? config.Overworld.PresetFolderName : null;
         if (!Objects.equals(configOverworld, overworldPreset)) return false;
@@ -311,18 +313,19 @@ public class DimensionManager {
 
         applyWorldPresetDimensionGameRules(config, config.Overworld, Level.OVERWORLD, "minecraft:overworld", server);
 
-        if (config.Nether != null && config.Nether.PresetFolderName != null) {
+        if (config.Nether != null && (config.Nether.hasPreset() || config.Nether.isNonOTG())) {
             applyWorldPresetDimensionGameRules(config, config.Nether, Level.NETHER, "minecraft:the_nether", server);
         }
 
-        if (config.End != null && config.End.PresetFolderName != null) {
+        if (config.End != null && (config.End.hasPreset() || config.End.isNonOTG())) {
             applyWorldPresetDimensionGameRules(config, config.End, Level.END, "minecraft:the_end", server);
         }
 
         if (config.Dimensions != null) {
             for (WorldPresetConfig.OTGDimension dim : config.Dimensions) {
-                if (dim.PresetFolderName == null) continue;
-                String normalizedName = DimensionNameUtils.normalizeName(dim.PresetFolderName);
+                String rawName = dim.hasPreset() ? dim.PresetFolderName : dim.DimensionName;
+                if (rawName == null) continue;
+                String normalizedName = DimensionNameUtils.normalizeName(rawName);
                 ResourceKey<Level> levelKey = DimensionKeys.otg(normalizedName);
                 applyWorldPresetDimensionGameRules(config, dim, levelKey, "otg:" + normalizedName, server);
             }
@@ -337,13 +340,16 @@ public class DimensionManager {
             MinecraftServer server
     ) {
         if (!storage.getGameRules(storageKey).isEmpty()) return;
-        if (dimEntry == null || dimEntry.PresetFolderName == null) return;
+        if (dimEntry == null || (!dimEntry.hasPreset() && !dimEntry.isNonOTG())) return;
 
-        DimensionPreset preset = OTG.getEngine().getDimensionPresetLoader()
-            .getDimensionPresetByFolderName(dimEntry.PresetFolderName);
-        if (preset == null) return;
+        GameRuleSettings gameRuleSettings = null;
+        if (dimEntry.hasPreset()) {
+            DimensionPreset preset = OTG.getEngine().getDimensionPresetLoader()
+                .getDimensionPresetByFolderName(dimEntry.PresetFolderName);
+            if (preset == null) return;
+            gameRuleSettings = preset.getConfig().getGameRuleSettings();
+        }
 
-        GameRuleSettings gameRuleSettings = preset.getConfig().getGameRuleSettings();
         GameRules rules = GameRuleApplier.createGameRules(
             gameRuleSettings,
             config.GameRules,         // world-level overrides

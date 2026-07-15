@@ -25,7 +25,7 @@ public final class GameRuleApplier {
      * with optional WorldPresetConfig overrides (single layer).
      */
     public static GameRules createGameRules(
-            GameRuleSettings presetRules,
+            @Nullable GameRuleSettings presetRules,
             @Nullable WorldPresetConfig.GameRules overrides,
             MinecraftServer server
     ) {
@@ -34,22 +34,23 @@ public final class GameRuleApplier {
 
     /**
      * Creates GameRules with 3-layer override hierarchy:
-     * 1. DimensionPresetConfig.ini GameRules (base)
+     * 1. DimensionPresetConfig.ini GameRules (base; vanilla defaults for non-OTG dimensions)
      * 2. WorldPreset YAML world-level GameRules (override)
      * 3. WorldPreset YAML per-dimension GameRules (override)
      *
      * Each layer only overrides non-null fields.
      */
     public static GameRules createGameRules(
-            GameRuleSettings presetRules,
+            @Nullable GameRuleSettings presetRules,
             @Nullable WorldPresetConfig.GameRules worldLevelOverrides,
             @Nullable WorldPresetConfig.GameRules dimensionOverrides,
             MinecraftServer server
     ) {
         GameRules rules = new GameRules();
 
-        // Layer 1: base from DimensionPresetConfig.ini (only if preset opts in)
-        if (presetRules.isOverrideGameRules()) {
+        // Layer 1: base from DimensionPresetConfig.ini (only if preset opts in).
+        // Null presetRules (non-OTG dimension) leaves vanilla defaults as the base.
+        if (presetRules != null && presetRules.isOverrideGameRules()) {
             applyFromPreset(rules, presetRules, server);
         }
 
