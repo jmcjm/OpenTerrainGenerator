@@ -211,11 +211,15 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                 if (this.biomeRegistry == null) {
                     this.biomeRegistry = serverLevel.registryAccess().registryOrThrow(Registries.BIOME);
                 }
-                otgBiomeProvider.setSurfaceHeightEstimator((worldX, worldZ) ->
-                    this.getHighestBlockYInUnloadedChunk(worldX, worldZ, true, true, true, true)
-                );
-                this.internalGenerator.setSurfaceHeightEstimator((worldX, worldZ) ->
-                    this.getHighestBlockYInUnloadedChunk(worldX, worldZ, true, true, true, true));
+                // Underground biome resolution only needs an approximate surface height for
+                // its 16-block depth fade. The shadow-chunk estimator generated a FULL chunk
+                // (plus ThreadSafeLRUCache lock contention) per uncached column — profiled at
+                // ~16 ms/chunk of pure lock-wait inside applyCarvers' carverBiome lookups and
+                // effectively double-generated every chunk. Pure noise-column math is lock-free
+                // and ~50x cheaper; shadow generation stays in use where exact block columns
+                // matter (BO4s, spawn logic, getHighestBlockYInUnloadedChunk callers).
+                otgBiomeProvider.setSurfaceHeightEstimator(this::estimateSurfaceHeightCached);
+                this.internalGenerator.setSurfaceHeightEstimator(this::estimateSurfaceHeightCached);
             }
         }
     }
@@ -418,7 +422,12 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                                 QuartPos.fromBlock(chunkPos2.getMinBlockZ()), randomState.sampler())));
                 int m = 0;
                 for (Holder<ConfiguredWorldCarver<?>> carver : biomeGenerationSettings.getCarvers(carving)) {
-                    if (!carver.isBound()) {
+                    // Noise caves REPLACE the vanilla default carvers. Template biomes
+                    // (real vanilla biome holders) carry minecraft:cave/canyon — running
+                    // them on top of noise caves double-carved those chunks and cost
+                    // ~24 ms/chunk. Same filter the legacy path uses; m stays positional
+                    // so surviving (modded) carvers keep their vanilla seeds.
+                    if (!carver.isBound() || isDefaultCaveOrRavine(carver)) {
                         ++m;
                         continue;
                     }
@@ -441,6 +450,15 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                 }
             }
         }
+    }
+
+    private static final List<String> DEFAULT_CAVES_AND_RAVINES = List.of(
+            "minecraft:cave", "minecraft:underwater_cave", "minecraft:nether_cave",
+            "minecraft:canyon", "minecraft:underwater_canyon");
+
+    private static boolean isDefaultCaveOrRavine(Holder<ConfiguredWorldCarver<?>> carver) {
+        String key = carver.unwrapKey().map(k -> k.location().toString()).orElse("");
+        return DEFAULT_CAVES_AND_RAVINES.contains(key);
     }
 
     private void handleOTGCarvers(long seed, ChunkAccess chunkAccess, GenerationStep.Carving carving) {
@@ -763,6 +781,24 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
     }
 
     // --- Heightmap sampling ---
+
+    /** Quart-resolution surface height estimates for underground biome resolution. */
+    private final com.pg85.otg.util.ThreadSafeLRUCache<Long, Integer> surfaceEstimateCache =
+            new com.pg85.otg.util.ThreadSafeLRUCache<>(16384);
+
+    /**
+     * Approximate surface height (highest non-air, so ocean surface over water) from pure
+     * noise-column math — no chunk generation, no locks beyond the Caffeine cache. Cached at
+     * quart resolution: underground biome placement samples quart-aligned coords, so aligned
+     * callers always see identical values and chunk borders stay seam-consistent.
+     */
+    private int estimateSurfaceHeightCached(int worldX, int worldZ) {
+        int quartX = worldX >> 2;
+        int quartZ = worldZ >> 2;
+        long key = ((long) quartX << 32) ^ (quartZ & 0xFFFFFFFFL);
+        return this.surfaceEstimateCache.computeIfAbsent(key, k ->
+                sampleHeightmap(quartX << 2, quartZ << 2, null, state -> !state.isAir()));
+    }
 
     private int sampleHeightmap(int x, int z, @Nullable BlockState[] blockStates, @Nullable Predicate<BlockState> predicate) {
         int minY = this.settings.value().noiseSettings().minY();
