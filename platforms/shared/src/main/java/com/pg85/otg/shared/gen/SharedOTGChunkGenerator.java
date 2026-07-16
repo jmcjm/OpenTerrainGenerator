@@ -25,6 +25,7 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import lombok.Getter;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.util.Mth;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.*;
@@ -548,6 +549,47 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
         double breakthroughScale = caveCfg.getSurfaceBreakthroughScale();
         double breakthroughThreshold = 1.0 - 2.0 * breakthroughChance;
 
+        // Cave density is evaluated on a 4x8x4 cell-corner lattice and trilinearly
+        // interpolated per block — same strategy vanilla NoiseChunk uses. Evaluating the
+        // full density tree per block (~90k evals/chunk) measured at 79 ms/chunk; cell
+        // corners bring that down to ~1.2k evals (~1-3 ms/chunk). The cacheOnce/interpolated
+        // markers in the router are inert with SinglePointContext, so per-block evaluation
+        // recomputed every noise octave from scratch on every block.
+        final int cellXZ = 4;
+        final int cellY = 8;
+        final int cornersXZ = Constants.CHUNK_SIZE / cellXZ + 1;
+        final int cellsY = (maxY - minY + cellY - 1) / cellY;
+        final int cornersY = cellsY + 1;
+
+        double[][][] corners = new double[cornersXZ][cornersY][cornersXZ];
+        double[][][] cornersSpaghetti = null;
+        double[][][] cornersCheese = null;
+        double[][][] cornersNoodle = null;
+        boolean debugComponents = debugCaveTypes && components != null;
+        if (debugComponents) {
+            cornersSpaghetti = new double[cornersXZ][cornersY][cornersXZ];
+            cornersCheese = new double[cornersXZ][cornersY][cornersXZ];
+            cornersNoodle = new double[cornersXZ][cornersY][cornersXZ];
+        }
+
+        for (int cx = 0; cx < cornersXZ; cx++) {
+            int cornerX = minX + cx * cellXZ;
+            for (int cz = 0; cz < cornersXZ; cz++) {
+                int cornerZ = minZ + cz * cellXZ;
+                for (int cy = 0; cy < cornersY; cy++) {
+                    int cornerY = minY + cy * cellY;
+                    DensityFunction.SinglePointContext ctx =
+                            new DensityFunction.SinglePointContext(cornerX, cornerY, cornerZ);
+                    corners[cx][cy][cz] = caveDensity.compute(ctx);
+                    if (debugComponents) {
+                        cornersSpaghetti[cx][cy][cz] = components.spaghetti().compute(ctx);
+                        cornersCheese[cx][cy][cz] = components.cheese().compute(ctx);
+                        cornersNoodle[cx][cy][cz] = components.noodle().compute(ctx);
+                    }
+                }
+            }
+        }
+
         for (int x = 0; x < Constants.CHUNK_SIZE; x++) {
             int worldX = minX + x;
             for (int z = 0; z < Constants.CHUNK_SIZE; z++) {
@@ -567,9 +609,7 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                     BlockState existing = targetChunk.getBlockState(blockPos);
                     if (existing.isAir() || existing.liquid() || existing.is(Blocks.BEDROCK)) continue;
 
-                    double density = caveDensity.compute(
-                            new DensityFunction.SinglePointContext(worldX, worldY, worldZ)
-                    );
+                    double density = trilerp(corners, x, worldY - minY, z, cellXZ, cellY);
 
                     if (!isBreakthroughColumn && surfaceY > 0) {
                         int distFromSurface = surfaceY - worldY;
@@ -581,11 +621,10 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                     }
 
                     if (density <= 0) {
-                        if (debugCaveTypes && components != null) {
-                            DensityFunction.SinglePointContext ctx = new DensityFunction.SinglePointContext(worldX, worldY, worldZ);
-                            double spaghettiD = components.spaghetti().compute(ctx);
-                            double cheeseD = components.cheese().compute(ctx);
-                            double noodleD = components.noodle().compute(ctx);
+                        if (debugComponents) {
+                            double spaghettiD = trilerp(cornersSpaghetti, x, worldY - minY, z, cellXZ, cellY);
+                            double cheeseD = trilerp(cornersCheese, x, worldY - minY, z, cellXZ, cellY);
+                            double noodleD = trilerp(cornersNoodle, x, worldY - minY, z, cellXZ, cellY);
 
                             BlockState debugBlock;
                             if (cheeseD <= spaghettiD && cheeseD <= noodleD) {
@@ -610,6 +649,24 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
         if (firstChunk) {
             OTGLog.info(LogCategory.PERFORMANCE, "carveWithNoise chunk(0,0): carved={} skippedSolid={}", carved, skippedSolid);
         }
+    }
+
+    /**
+     * Trilinear interpolation over a cell-corner density grid. lx/ly/lz are block offsets
+     * from the chunk origin (ly measured from minY).
+     */
+    private static double trilerp(double[][][] corners, int lx, int ly, int lz, int cellXZ, int cellY) {
+        int cx = lx / cellXZ;
+        int cy = ly / cellY;
+        int cz = lz / cellXZ;
+        double tx = (lx - cx * cellXZ) / (double) cellXZ;
+        double ty = (ly - cy * cellY) / (double) cellY;
+        double tz = (lz - cz * cellXZ) / (double) cellXZ;
+        return Mth.lerp3(tx, ty, tz,
+                corners[cx][cy][cz],         corners[cx + 1][cy][cz],
+                corners[cx][cy + 1][cz],     corners[cx + 1][cy + 1][cz],
+                corners[cx][cy][cz + 1],     corners[cx + 1][cy][cz + 1],
+                corners[cx][cy + 1][cz + 1], corners[cx + 1][cy + 1][cz + 1]);
     }
 
     // --- Utility ---
