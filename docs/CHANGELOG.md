@@ -1,5 +1,20 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-17 — Modern caves performance (~5× faster chunk generation)**
+
+DefaultPreset generated chunks several times slower than presets without `UseModernCaves` (e.g. Biome Bundle). Measured per-chunk on a 16-worker dev server, marginal steady state, before → after:
+
+| Phase | before | after |
+|---|---|---|
+| fillFromNoise | 80–96 ms | **12.8 ms** |
+| — carveWithNoise | 70–86 ms | **3.9 ms** |
+| applyCarvers | 13–16 ms | **0.5 ms** |
+
+- **Cell-based cave density evaluation**: `carveWithNoise` evaluated the full cave density tree (cheese + spaghetti + noodle + pillars) per solid block via `SinglePointContext` — ~90k full-tree evaluations per chunk; the router's `cacheOnce`/`interpolated` markers are inert outside a NoiseChunk visitor, so nothing was cached. It now samples the tree on a 4×8×4 cell-corner lattice with trilinear interpolation — vanilla's own strategy. Cave shapes change marginally (interpolation smoothing); existing worlds may show minor seams inside caves at old/new chunk borders.
+- **Vanilla default carvers filtered under modern caves**: template biomes (real vanilla biome holders) carried `minecraft:cave`/`canyon` carvers that ran **on top of** noise caves, double-carving those chunks. Modern caves replace the vanilla defaults (same filter the legacy path applies); modded/datapack carvers keep running with vanilla-identical seeds, and the carver NoiseChunk/aquifer is now created lazily only when one actually starts.
+- **Surface estimates without shadow generation**: the underground-biome surface estimator ran a full shadow chunk generation (plus cache lock contention) per uncached biome lookup in ungenerated terrain — every chunk was effectively generated twice, and JFR showed applyCarvers spending its time waiting on the shadow cache lock. Underground placement only feeds a 16-block depth fade, so the estimator now uses pure noise-column math (4 columns + lerp) cached at quart resolution. Shadow generation still serves BO4s and spawn logic.
+- Diagnosis notes: vanilla structure toggles were measured at 0.6 ms/chunk (not a factor, contrary to earlier suspicion); the structure-tag `bindTags()` stall did not reproduce on either platform in a clean dev environment.
+
 ### Release: 0.7.0-dev1
 
 ---
