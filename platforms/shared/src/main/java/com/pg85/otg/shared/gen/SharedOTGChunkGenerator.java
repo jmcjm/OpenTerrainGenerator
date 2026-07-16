@@ -339,7 +339,7 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
     public void applyCarvers(WorldGenRegion worldGenRegion, long seed, RandomState randomState, BiomeManager biomeManager, StructureManager structureManager, ChunkAccess chunkAccess, GenerationStep.Carving carving) {
         long t0 = System.nanoTime();
         if (this.preset.getConfig().getCarverSettings().isUseModernCaves()) {
-            this.horribleDelegateForCarvers.applyCarvers(worldGenRegion, seed, randomState, biomeManager, structureManager, chunkAccess, carving);
+            applyVanillaCarversLazily(worldGenRegion, seed, randomState, biomeManager, structureManager, chunkAccess, carving);
             long elapsed = System.nanoTime() - t0;
             carversTotalNs.addAndGet(elapsed);
             int count = carversCount.incrementAndGet();
@@ -381,6 +381,63 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
                         }
                         ++m;
                     }
+                }
+            }
+        }
+    }
+
+    /**
+     * Vanilla {@code NoiseBasedChunkGenerator.applyCarvers} semantics with lazy NoiseChunk/
+     * CarvingContext creation. OTG-built biomes carry no carvers (BiomeFactory attaches none),
+     * so for most chunks the 17x17 scan finds nothing and we skip NoiseChunk + aquifer +
+     * Beardifier entirely (~27-38 ms/chunk measured with the blind delegate). Template biomes
+     * (vanilla holders) keep their vanilla carvers — carver seeds and iteration order match
+     * vanilla exactly ({@code setLargeFeatureSeed(seed + m)} with unconditional m increment),
+     * so world output is identical to the previous delegate call.
+     */
+    private void applyVanillaCarversLazily(WorldGenRegion worldGenRegion, long seed, RandomState randomState,
+                                           BiomeManager biomeManager, StructureManager structureManager,
+                                           ChunkAccess chunkAccess, GenerationStep.Carving carving) {
+        BiomeManager biomeManager2 = biomeManager.withDifferentSource((i, j, k) ->
+                this.getBiomeSource().getNoiseBiome(i, j, k, randomState.sampler()));
+        WorldgenRandom worldgenRandom = new WorldgenRandom(new LegacyRandomSource(RandomSupport.generateUniqueSeed()));
+        ChunkPos chunkPos = chunkAccess.getPos();
+
+        NoiseChunk noiseChunk = null;
+        CarvingMask carvingMask = null;
+        Aquifer aquifer = null;
+        CarvingContext carvingContext = null;
+
+        for (int j2 = -8; j2 <= 8; ++j2) {
+            for (int k2 = -8; k2 <= 8; ++k2) {
+                ChunkPos chunkPos2 = new ChunkPos(chunkPos.x + j2, chunkPos.z + k2);
+                ChunkAccess neighborChunk = worldGenRegion.getChunk(chunkPos2.x, chunkPos2.z);
+                BiomeGenerationSettings biomeGenerationSettings = neighborChunk.carverBiome(() ->
+                        this.getBiomeGenerationSettings(this.getBiomeSource().getNoiseBiome(
+                                QuartPos.fromBlock(chunkPos2.getMinBlockX()), 0,
+                                QuartPos.fromBlock(chunkPos2.getMinBlockZ()), randomState.sampler())));
+                int m = 0;
+                for (Holder<ConfiguredWorldCarver<?>> carver : biomeGenerationSettings.getCarvers(carving)) {
+                    if (!carver.isBound()) {
+                        ++m;
+                        continue;
+                    }
+                    ConfiguredWorldCarver<?> configuredWorldCarver = carver.value();
+                    worldgenRandom.setLargeFeatureSeed(seed + (long) m, chunkPos2.x, chunkPos2.z);
+                    if (configuredWorldCarver.isStartChunk(worldgenRandom)) {
+                        if (carvingContext == null) {
+                            noiseChunk = chunkAccess.getOrCreateNoiseChunk(chunkAccess2 ->
+                                    this.createNoiseChunk(chunkAccess2, structureManager, Blender.of(worldGenRegion), randomState));
+                            carvingMask = ((ProtoChunk) chunkAccess).getOrCreateCarvingMask(carving);
+                            aquifer = noiseChunk.aquifer();
+                            carvingContext = new CarvingContext(this.horribleDelegateForCarvers,
+                                    worldGenRegion.registryAccess(), chunkAccess.getHeightAccessorForGeneration(),
+                                    noiseChunk, randomState, this.settings.value().surfaceRule());
+                        }
+                        configuredWorldCarver.carve(carvingContext, chunkAccess, biomeManager2::getBiome,
+                                worldgenRandom, aquifer, chunkPos2, carvingMask);
+                    }
+                    ++m;
                 }
             }
         }
