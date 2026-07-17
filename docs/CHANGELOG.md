@@ -1,5 +1,12 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-17 — Fixed: `IllegalStateException: Adding duplicate key otg:otg_default` crashed world create/load**
+
+Creating or loading any world hard-crashed on `RegistryDataLoader.load` (regression from the 0.7.x WorldPreset-YAML feature). `loadOTGPresets` registered world presets through two paths into the same `WORLD_PRESET` registry with no shared collision policy: the per-DimensionPreset auto-registration (`otg:<registryName>`) and the WorldPreset-YAML loop (`otg:<normalizeId(DisplayName)>`). The shipped `Default.yaml` (`DisplayName: "OTG Default"`) normalizes to `otg_default`, the same key the built-in `DefaultPreset` already claimed → the second `register()` threw.
+
+- **WorldPreset YAMLs now take precedence.** YAML configs are loaded up-front and the ids they claim are collected; the per-DimensionPreset auto-registration defers (logs and skips) any id an explicit YAML will register. So editing `Default.yaml` (its Nether/End/GameRules/Settings) actually takes effect instead of being silently shadowed by the auto-registered preset.
+- **Both registration paths are now collision-guarded** — a `containsKey` check turns any future duplicate (from any id source) into a warning instead of a hard crash. Works identically on Fabric and NeoForge.
+
 ### Release: 0.7.1-dev1
 
 ---

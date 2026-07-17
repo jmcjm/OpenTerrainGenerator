@@ -151,14 +151,26 @@ public final class OTGRegistryHelper {
     public static void registerWorldPresets(
             DimensionPreset preset,
             WritableRegistry<WorldPreset> worldPresets,
-            Map<ResourceKey<LevelStem>, LevelStem> levelStems
+            Map<ResourceKey<LevelStem>, LevelStem> levelStems,
+            Set<String> yamlClaimedIds
     ) {
-        WorldPreset worldPreset = new WorldPreset(levelStems);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID_SHORT, preset.getRegistryName().toLowerCase(Locale.ROOT));
+        String presetId = preset.getRegistryName().toLowerCase(Locale.ROOT);
+        // An explicit WorldPreset YAML with the same normalized id is the source of truth and
+        // gets registered later in loadOTGPresets. Defer to it instead of racing for the same
+        // otg:<id> key (both paths registering it is the duplicate-key crash on world load).
+        if (yamlClaimedIds.contains(presetId)) {
+            OTGLog.info("World preset otg:{} is defined by a WorldPreset YAML; skipping auto-registration from DimensionPreset '{}'", presetId, preset.getRegistryName());
+            return;
+        }
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID_SHORT, presetId);
         ResourceKey<WorldPreset> key = ResourceKey.create(Registries.WORLD_PRESET, id);
-        worldPresets.register(key, worldPreset, RegistrationInfo.BUILT_IN);
+        if (worldPresets.containsKey(key)) {
+            OTGLog.warn("World preset {} already registered; skipping duplicate", key.location());
+            return;
+        }
+        worldPresets.register(key, new WorldPreset(levelStems), RegistrationInfo.BUILT_IN);
         OTGTranslations.put(
-            "generator." + Constants.MOD_ID_SHORT + "." + preset.getRegistryName().toLowerCase(Locale.ROOT),
+            "generator." + Constants.MOD_ID_SHORT + "." + presetId,
             preset.getConfig().getPresetInfo().getDisplayName());
         OTGLog.info("Registered world preset: {}", key.location());
     }
@@ -421,6 +433,18 @@ public final class OTGRegistryHelper {
             return;
         }
 
+        // Load WorldPreset YAMLs up-front and collect the otg:<id> keys they will claim, so the
+        // per-DimensionPreset auto-registration below can defer to an explicit YAML of the same id
+        // rather than both paths registering it (that collision is the duplicate-key crash).
+        List<WorldPresetConfig> worldPresetConfigs = WorldPresetConfigLoader.loadAll(
+            OTG.getEngine().getOTGRootFolder());
+        Set<String> yamlClaimedIds = new HashSet<>();
+        for (WorldPresetConfig config : worldPresetConfigs) {
+            if (config.DisplayName != null && !config.DisplayName.isBlank()) {
+                yamlClaimedIds.add(WorldPresetRegistrar.normalizeId(config.DisplayName));
+            }
+        }
+
         for (DimensionPreset preset : dimensionTypes.keySet()) {
             if (!preset.getConfig().getPresetInfo().isSelectableInWorldCreation()) {
                 continue;
@@ -430,12 +454,10 @@ public final class OTGRegistryHelper {
 
             Map<ResourceKey<LevelStem>, LevelStem> levelStems = createLevelStems(preset, loaders, chunkGeneratorFactory);
 
-            registerWorldPresets(preset, worldPresets, levelStems);
+            registerWorldPresets(preset, worldPresets, levelStems, yamlClaimedIds);
         }
 
         // Register WorldPreset YAMLs as MC WorldPresets
-        List<WorldPresetConfig> worldPresetConfigs = WorldPresetConfigLoader.loadAll(
-            OTG.getEngine().getOTGRootFolder());
         if (!worldPresetConfigs.isEmpty()) {
             Map<String, DimensionPreset> presetMap = new HashMap<>();
             for (DimensionPreset p : OTG.getEngine().getDimensionPresetLoader().getAllDimensionPresets()) {

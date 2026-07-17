@@ -85,6 +85,12 @@ public class WorldPresetRegistrar {
                 Registries.WORLD_PRESET,
                 ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID_SHORT, normalizedId));
 
+            if (worldPresets.containsKey(key)) {
+                OTGLog.warn("WorldPreset '{}' (otg:{}) collides with an already-registered world preset; skipping", config.DisplayName, normalizedId);
+                registeredNames.add(normalizedId);
+                continue;
+            }
+
             worldPresets.register(key, preset, RegistrationInfo.BUILT_IN);
             OTGTranslations.put(
                 "generator." + Constants.MOD_ID_SHORT + "." + normalizedId,
