@@ -1,5 +1,9 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+### Release: 0.7.1-dev1
+
+---
+
 **2026-07-17 — Modern caves performance (~5× faster chunk generation)**
 
 DefaultPreset generated chunks several times slower than presets without `UseModernCaves` (e.g. Biome Bundle). Measured per-chunk on a 16-worker dev server, marginal steady state, before → after:
