@@ -1,5 +1,13 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-17 — Prototype: single merged fabric+neoforge jar via Forgix (branch `1.21.1-forgix`, not shippable yet)**
+
+Distant Horizons-style dual-loader jar experiment. The root build now applies the Forgix plugin (`io.github.pacifistmc.forgix` 2.0.0-SNAPSHOT.2.3 — the last build compatible with Gradle 8.8; newer snapshots are compiled for Java 24) with both platform `remapJar` outputs as explicit inputs; `./gradlew build mergeJars` produces `build/forgix/OpenTerrainGenerator-<version>-fabric-neoforge.jar`.
+
+- **Size result is attractive**: merged jar is 6.33 MiB vs 5.73 + 5.73 MiB separate — only 123 of ~655 own classes differ between the intermediary (Fabric) and mojmap (NeoForge) remaps; everything else (common modules, resources, shaded deps) dedupes into one copy. Differing classes are relocated under `fabric/`/`neoforge/` prefixes, loader metadata coexists, mixin configs are split per loader with the Fabric refmap preserved.
+- **Not runtime-viable with this Forgix version**: (1) relocated shared-mixin classes are not reflected in the split mixin configs — `package` still points at the original path, so both loaders would fail to resolve every shared mixin at boot; (2) 24 nest-mate inner classes that are byte-identical across loaders stay un-relocated while their outer classes moved — dangling references (NCDFE) in editor/preview code; (3) the emitted `META-INF/forgix/*.tiny` relocation mappings have no runtime consumer in the jar. Newer Forgix (2.0.0-SNAPSHOT.5.x, used by Distant Horizons) likely addresses this but requires a Gradle upgrade to load Java-24 bytecode.
+- **Caveat**: Forgix mutates the `remapJar` outputs in `platforms/*/build/libs/` in place during the merge; the always-out-of-date manifest timestamp means they are regenerated on every build, so `build/distributions/` copies stay pristine.
+
 **2026-07-17 — Fixed: `IllegalStateException: Adding duplicate key otg:otg_default` crashed world create/load**
 
 Creating or loading any world hard-crashed on `RegistryDataLoader.load` (regression from the 0.7.x WorldPreset-YAML feature). `loadOTGPresets` registered world presets through two paths into the same `WORLD_PRESET` registry with no shared collision policy: the per-DimensionPreset auto-registration (`otg:<registryName>`) and the WorldPreset-YAML loop (`otg:<normalizeId(DisplayName)>`). The shipped `Default.yaml` (`DisplayName: "OTG Default"`) normalizes to `otg_default`, the same key the built-in `DefaultPreset` already claimed → the second `register()` threw.
