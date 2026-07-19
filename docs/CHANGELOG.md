@@ -1,5 +1,11 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-19 — Fixed: sleeping in a non-overworld dimension never advanced time (vanilla MC-188578)**
+
+Sleeping in any dimension except the overworld completed the sleep, woke the players — and left it night, indefinitely. Vanilla routes the sleep time-skip through `ServerLevel.setDayTime`, which delegates to the level's `ServerLevelData`; every non-overworld level (OTG dimensions and vanilla/datapack custom dimensions alike) is backed by `DerivedLevelData`, whose `setDayTime` is an empty no-op. `wakeUpAllPlayers()` then runs unconditionally, hence the wake-up-to-the-same-night loop.
+
+A shared mixin (`ServerLevelSleepMixin`) redirects the sleep-block call site to apply the skip to the overworld's level data — day time is global in Minecraft, so this matches what sleeping in the overworld does. The redirect is deliberately scoped to that one call site: delegating `DerivedLevelData.setDayTime` wholesale would also un-no-op the per-tick `tickTime()` increment and make time advance once per dimension per tick. Levels with their own primary `ServerLevelData` (per-dimension-time mods) are left untouched, and `/time set` is unaffected (it already iterates all levels). Applies to both platforms.
+
 **2026-07-17 — Fixed: `IllegalStateException: Adding duplicate key otg:otg_default` crashed world create/load**
 
 Creating or loading any world hard-crashed on `RegistryDataLoader.load` (regression from the 0.7.x WorldPreset-YAML feature). `loadOTGPresets` registered world presets through two paths into the same `WORLD_PRESET` registry with no shared collision policy: the per-DimensionPreset auto-registration (`otg:<registryName>`) and the WorldPreset-YAML loop (`otg:<normalizeId(DisplayName)>`). The shipped `Default.yaml` (`DisplayName: "OTG Default"`) normalizes to `otg_default`, the same key the built-in `DefaultPreset` already claimed → the second `register()` threw.
