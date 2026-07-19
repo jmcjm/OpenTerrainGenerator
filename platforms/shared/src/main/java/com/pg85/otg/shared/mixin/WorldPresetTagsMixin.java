@@ -56,16 +56,6 @@ public class WorldPresetTagsMixin {
 
         presets.bindTags(collected);
 
-        // TODO: addBiomesToStructureTags() causes a ~60s stall on NeoForge. NeoForge patches
-        //  HolderSet.Named.bind() with invalidation callbacks that invalidate
-        //  ChunkGenerator.featuresPerStep (Lazy<>), triggering FeatureSorter.buildFeaturesPerStep()
-        //  rebuild on first decoration access.
-        //  Fabric is unaffected (vanilla bind() has no callbacks).
-        //  Attempted fix: @Redirect on bindTags() inside private static updateRegistryTags() to
-        //  inject OTG tags into the vanilla tag map before the single bindTags() call — still slow.
-        //  Possible fixes: pre-warm featuresPerStep cache after tag injection, or find a way to
-        //  suppress NeoForge invalidation callbacks during bindTags().
-        //  Without this, vanilla structures (villages, mineshafts etc.) won't spawn in OTG biomes.
         addBiomesToStructureTags(registryAccess);
     }
 
