@@ -1,8 +1,10 @@
 package com.pg85.otg.shared.mixin;
 
 import com.pg85.otg.config.settings.biome.BiomeStructureTagConfig;
+import com.pg85.otg.config.settings.biome.BiomeTagSettings;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.shared.biome.SharedDimensionPresetBiomeLoader;
+import com.pg85.otg.shared.tags.BiomeTagResolver;
 import com.pg85.otg.util.OTGLog;
 import com.pg85.otg.util.biome.StructureTagMapper;
 import net.minecraft.core.Holder;
@@ -56,14 +58,16 @@ public class WorldPresetTagsMixin {
 
         presets.bindTags(collected);
 
-        addBiomesToStructureTags(registryAccess);
+        addOTGBiomeTags(registryAccess);
     }
 
-    private void addBiomesToStructureTags(RegistryAccess registryAccess) {
+    private void addOTGBiomeTags(RegistryAccess registryAccess) {
         Map<ResourceKey<Biome>, BiomeStructureTagConfig> structureConfigs =
                 SharedDimensionPresetBiomeLoader.getStructureTagConfigs();
+        Map<ResourceKey<Biome>, BiomeTagSettings> tagConfigs =
+                SharedDimensionPresetBiomeLoader.getBiomeTagConfigs();
 
-        if (structureConfigs.isEmpty()) return;
+        if (structureConfigs.isEmpty() && tagConfigs.isEmpty()) return;
 
         var biomeRegistry = registryAccess.registryOrThrow(Registries.BIOME);
 
@@ -74,28 +78,49 @@ public class WorldPresetTagsMixin {
                 HashMap::putAll
         );
 
-        int addedCount = 0;
+        int structureTagCount = 0;
         for (var entry : structureConfigs.entrySet()) {
-            ResourceKey<Biome> biomeKey = entry.getKey();
-            BiomeStructureTagConfig config = entry.getValue();
+            Holder.Reference<Biome> holder = biomeHolder(biomeRegistry, entry.getKey());
+            if (holder == null) continue;
 
-            Optional<Holder.Reference<Biome>> holderOpt = biomeRegistry.getHolder(biomeKey);
-            if (holderOpt.isEmpty()) {
-                OTGLog.warn("Could not find holder for biome {} when injecting structure tags", biomeKey.location());
-                continue;
-            }
-            Holder.Reference<Biome> holder = holderOpt.get();
-
-            for (String tagPath : StructureTagMapper.getStructureTags(config)) {
+            for (String tagPath : StructureTagMapper.getStructureTags(entry.getValue())) {
                 TagKey<Biome> tagKey = TagKey.create(Registries.BIOME, ResourceLocation.parse(tagPath));
-                biomeTagMap.computeIfAbsent(tagKey, k -> new ArrayList<>()).add(holder);
-                addedCount++;
+                addToTag(biomeTagMap, tagKey, holder);
+                structureTagCount++;
+            }
+        }
+
+        int biomeTagCount = 0;
+        for (var entry : tagConfigs.entrySet()) {
+            Holder.Reference<Biome> holder = biomeHolder(biomeRegistry, entry.getKey());
+            if (holder == null) continue;
+
+            for (TagKey<Biome> tagKey : BiomeTagResolver.resolve(entry.getValue())) {
+                addToTag(biomeTagMap, tagKey, holder);
+                biomeTagCount++;
             }
         }
 
         biomeRegistry.bindTags(biomeTagMap);
-        OTGLog.info("Injected {} structure tag entries for {} OTG biomes",
-                addedCount, structureConfigs.size());
+        OTGLog.info("Injected {} structure tag and {} biome tag entries for OTG biomes",
+                structureTagCount, biomeTagCount);
+    }
+
+    private static Holder.Reference<Biome> biomeHolder(Registry<Biome> biomeRegistry, ResourceKey<Biome> biomeKey) {
+        Optional<Holder.Reference<Biome>> holderOpt = biomeRegistry.getHolder(biomeKey);
+        if (holderOpt.isEmpty()) {
+            OTGLog.warn("Could not find holder for biome {} when injecting tags", biomeKey.location());
+            return null;
+        }
+        return holderOpt.get();
+    }
+
+    private static void addToTag(Map<TagKey<Biome>, List<Holder<Biome>>> biomeTagMap,
+                                 TagKey<Biome> tagKey, Holder.Reference<Biome> holder) {
+        List<Holder<Biome>> list = biomeTagMap.computeIfAbsent(tagKey, k -> new ArrayList<>());
+        if (!list.contains(holder)) {
+            list.add(holder);
+        }
     }
 
     private static <T> Optional<Holder.Reference<T>> getAsReference(Registry<T> registry, ResourceLocation key) {

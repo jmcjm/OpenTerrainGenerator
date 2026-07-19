@@ -4,6 +4,7 @@ import com.pg85.otg.biome.BiomePlan;
 import com.pg85.otg.config.biome.BiomeConfig;
 import com.pg85.otg.config.settings.biome.BiomeSettings;
 import com.pg85.otg.config.settings.biome.BiomeStructureTagConfig;
+import com.pg85.otg.config.settings.biome.BiomeTagSettings;
 import com.pg85.otg.config.settings.preset.DimensionPresetSettings;
 import com.pg85.otg.interfaces.IBiome;
 import com.pg85.otg.interfaces.IBiomeResourceLocation;
@@ -35,6 +36,7 @@ public final class BiomeRegistrar {
     public record RegistrationResult(
         IBiome[] globalIdMapping,
         Map<ResourceKey<Biome>, BiomeStructureTagConfig> structureTagConfigs,
+        Map<ResourceKey<Biome>, BiomeTagSettings> biomeTagConfigs,
         List<ResourceKey<Biome>> presetBiomes
     ) {}
 
@@ -52,6 +54,7 @@ public final class BiomeRegistrar {
         IBiome[] presetIdMapping = new IBiome[plan.totalBiomeSlots()];
         List<ResourceKey<Biome>> presetBiomes = new ArrayList<>();
         Map<ResourceKey<Biome>, BiomeStructureTagConfig> structureTagConfigs = new LinkedHashMap<>();
+        Map<ResourceKey<Biome>, BiomeTagSettings> biomeTagConfigs = new LinkedHashMap<>();
 
         Iterator<IBiomeResourceLocation> locationIterator = biomeConfigsByResourceLocation.keySet().iterator();
 
@@ -94,6 +97,9 @@ public final class BiomeRegistrar {
                 if (biomeConfig.getBiomeStructureTagConfig() != null) {
                     structureTagConfigs.put(resourceKey, biomeConfig.getBiomeStructureTagConfig());
                 }
+                if (biomeConfig.getBiomeTagSettings() != null) {
+                    biomeTagConfigs.put(resourceKey, biomeConfig.getBiomeTagSettings());
+                }
             }
 
             presetBiomes.add(resourceKey);
@@ -109,6 +115,6 @@ public final class BiomeRegistrar {
             System.arraycopy(presetIdMapping, 1, presetIdMapping, 0, presetIdMapping.length - 1);
         }
 
-        return new RegistrationResult(presetIdMapping, structureTagConfigs, presetBiomes);
+        return new RegistrationResult(presetIdMapping, structureTagConfigs, biomeTagConfigs, presetBiomes);
     }
 }

@@ -11,6 +11,7 @@ import com.pg85.otg.config.biome.BiomeTemplate;
 import com.pg85.otg.config.biome.TemplateBiome;
 import com.pg85.otg.config.preset.DimensionPresetConfig;
 import com.pg85.otg.config.settings.biome.BiomeStructureTagConfig;
+import com.pg85.otg.config.settings.biome.BiomeTagSettings;
 import com.pg85.otg.constants.Constants;
 import com.pg85.otg.gen.biome.layers.BiomeLayerData;
 import com.pg85.otg.interfaces.IBiome;
@@ -47,9 +48,14 @@ public class SharedDimensionPresetBiomeLoader extends LocalDimensionPresetLoader
     public static boolean BIOME_DATA_INITIALIZED = false;
 
     private static final Map<ResourceKey<Biome>, BiomeStructureTagConfig> structureTagConfigs = new LinkedHashMap<>();
+    private static final Map<ResourceKey<Biome>, BiomeTagSettings> biomeTagConfigs = new LinkedHashMap<>();
 
     public static Map<ResourceKey<Biome>, BiomeStructureTagConfig> getStructureTagConfigs() {
         return structureTagConfigs;
+    }
+
+    public static Map<ResourceKey<Biome>, BiomeTagSettings> getBiomeTagConfigs() {
+        return biomeTagConfigs;
     }
 
     private final BiomePlatformAdapter platformAdapter;
@@ -68,6 +74,7 @@ public class SharedDimensionPresetBiomeLoader extends LocalDimensionPresetLoader
         clearBiomeData();
         this.biomesByPresetFolderName = new LinkedHashMap<>();
         structureTagConfigs.clear();
+        biomeTagConfigs.clear();
 
         if (this.presetsDir.exists() && this.presetsDir.isDirectory()) {
             for (File presetDir : Objects.requireNonNull(this.presetsDir.listFiles())) {
@@ -143,6 +150,7 @@ public class SharedDimensionPresetBiomeLoader extends LocalDimensionPresetLoader
 
         presetBiomes.addAll(result.presetBiomes());
         structureTagConfigs.putAll(result.structureTagConfigs());
+        biomeTagConfigs.putAll(result.biomeTagConfigs());
         putGlobalIdMapping(preset.getFolderName(), result.globalIdMapping());
 
         BiomeLayerData data = new BiomeLayerData(

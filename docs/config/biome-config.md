@@ -48,6 +48,8 @@ Determines the base terrain block used for this biome and which dimension it bel
 
 A list of tag strings used by other mods to identify this biome and place modded blocks, items, and mobs. Tags also drive OTG's internal biome-property flags (e.g. `HOT`, `DRY`, `SANDY`).
 
+At world load, these are bound to the Minecraft biome tag registry as the matching vanilla tags (`minecraft:is_forest`, `minecraft:is_taiga`, …) and `c:` convention tags (`c:is_snowy`, `c:is_cold/overworld`, …). Together with the dimension tag derived from `BiomeType` (`minecraft:is_overworld`/`is_nether`/`is_end` plus the `c:` counterpart), this is what makes tag-targeted biome modifiers from other mods (modded ores, mob spawns) apply to OTG biomes. Biomes with `TemplateForBiome: true` are unaffected — they reuse an existing registered biome that already carries its own tags.
+
 | Property | Value |
 |----------|-------|
 | Type | `string list` |

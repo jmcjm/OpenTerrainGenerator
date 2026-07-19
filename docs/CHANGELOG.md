@@ -1,5 +1,16 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-19 — Fixed: OTG biomes carried no biome tags, so modded ores and mob spawns never applied**
+
+Verified empirically on a production server: the same modset placed `create:zinc_ore` in ~35% of chunks of a vanilla-biome dimension while the OTG overworld had zero — tag-targeted biome modifiers (`#minecraft:is_overworld`, `#c:is_overworld`, …) simply never matched OTG-created biomes, which carried no tags at all beyond `minecraft:has_structure/*`. The `.bc` `BiomeTags` setting only ever fed OTG-internal booleans and the `OTGBiomeTagPath` convention-tag enum sat completely unused, despite the docs claiming mods could identify biomes by these tags.
+
+- New `BiomeTagResolver` maps each biome config's `BiomeTagSettings` to real registry tags: the dimension tag from `BiomeType` (`minecraft:is_overworld`/`is_nether`/`is_end` + the `c:` counterpart — bound for every OTG biome, even with no `BiomeTags` set), vanilla `minecraft:is_*` category tags where one exists (forest, taiga, jungle, mountain, hill, ocean, deep_ocean, river, beach, badlands, savanna), and the `c:` convention tags other mods target (categories, climate families with per-dimension sub-tags, tree types, `primary_wood_type/*`).
+- Binding reuses the existing structure-tag injection point (`WorldPresetTagsMixin`, after `updateRegistryTags`) — both tag sources now feed a single `bindTags` call, with duplicate-holder guarding. Biome modifiers (NeoForge) and Fabric's tag-based biome selectors run after tag binding, so modded ores and mob spawns now land in OTG biomes on both platforms.
+- Template biomes (`TemplateForBiome: true`) are untouched — they already reuse fully-tagged registered biomes.
+- Note for existing worlds: features added by biome modifiers only affect newly generated chunks; mob spawning picks up immediately everywhere.
+
+Verified on a dev Fabric server: `/locate biome #minecraft:is_overworld` and `#c:is_overworld` now resolve to OTG biomes (`otg_default:stony_peaks`), category tags too (`#minecraft:is_taiga` → `otg_default:grove`).
+
 **2026-07-19 — Fixed: sleeping in a non-overworld dimension never advanced time (vanilla MC-188578)**
 
 Sleeping in any dimension except the overworld completed the sleep, woke the players — and left it night, indefinitely. Vanilla routes the sleep time-skip through `ServerLevel.setDayTime`, which delegates to the level's `ServerLevelData`; every non-overworld level (OTG dimensions and vanilla/datapack custom dimensions alike) is backed by `DerivedLevelData`, whose `setDayTime` is an empty no-op. `wakeUpAllPlayers()` then runs unconditionally, hence the wake-up-to-the-same-night loop.
