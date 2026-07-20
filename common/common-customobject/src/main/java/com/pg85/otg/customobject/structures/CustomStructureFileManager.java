@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Stack;
 import java.util.Map.Entry;
@@ -612,7 +611,9 @@ public class CustomStructureFileManager
 	static HashMap<CustomStructure, ArrayList<ChunkCoordinate>> loadStructureData(String presetFolderName, Path worldSaveDir, long worldSeed, boolean isBO4Enabled, Path otgRootFolder,  CustomObjectManager customObjectManager, IMaterialReader materialReader, CustomObjectResourcesManager manager, IModLoadedChecker modLoadedChecker)
 	{
 		HashMap<CustomStructure, ArrayList<ChunkCoordinate>> output = new HashMap<>();
-		
+		// Tracks which key instance is stored in output for each key, see mergeRegionData.
+		HashMap<CustomStructure, CustomStructure> outputKeys = new HashMap<>();
+
 		File structureDataFolder = new File(
 			worldSaveDir + File.separator + 
 			Constants.MOD_ID + File.separator + 
@@ -721,7 +722,7 @@ public class CustomStructureFileManager
 				if(result != null)
 				{
 					bSuccess = true;
-					mergeRegionData(result, output);
+					mergeRegionData(result, output, outputKeys);
 				}
 			}
 			
@@ -765,7 +766,7 @@ public class CustomStructureFileManager
 				if(result != null)
 				{
 					bSuccess = true;
-					mergeRegionData(result, output);
+					mergeRegionData(result, output, outputKeys);
 				}
 			}
 			if(!bSuccess)
@@ -781,41 +782,45 @@ public class CustomStructureFileManager
 		return !output.isEmpty() ? output : null;
 	}
 	
-	private static void mergeRegionData(HashMap<CustomStructure, ArrayList<ChunkCoordinate>> result, HashMap<CustomStructure, ArrayList<ChunkCoordinate>> output)
+	// When parsing structures per region, merge all placeholder structures
+	// into their real structure starts as soon as their regions are loaded.
+	// TODO: Load on-demand, not all regions at once.
+	//
+	// The merge needs the key instance that is actually stored in output (it decides which
+	// side is the placeholder, and is the merge target). HashMap cannot hand a stored key
+	// back, so this used to copy all of output into a new HashSet and scan it linearly for
+	// every duplicate structure. On a 240k-structure world that is ~183 million entry copies
+	// per load, which is where the minute-long stalls came from. outputKeys maps each key in
+	// output to the instance stored there, making the lookup O(1).
+	private static void mergeRegionData(HashMap<CustomStructure, ArrayList<ChunkCoordinate>> result, HashMap<CustomStructure, ArrayList<ChunkCoordinate>> output, HashMap<CustomStructure, CustomStructure> outputKeys)
 	{
-		// When parsing structures per region, merge all placeholder structures 
-		// into their real structure starts as soon as their regions are loaded.
-		// TODO: Load on-demand, not all regions at once.
 		for(Entry<CustomStructure, ArrayList<ChunkCoordinate>> entryResult : result.entrySet())
 		{
-			if(output.containsKey(entryResult.getKey()))
+			CustomStructure resultKey = entryResult.getKey();
+			CustomStructure outputKey = outputKeys.get(resultKey);
+
+			if(outputKey == null)
 			{
-				for(Entry<CustomStructure, ArrayList<ChunkCoordinate>> entryOutput : new HashSet<>(output.entrySet()))
-				{				
-					// Returns true if structure starts are equal
-					if(entryResult.getKey().equals(entryOutput.getKey()))
-					{
-						if(entryResult.getKey() instanceof CustomStructurePlaceHolder)
-						{
-							((CustomStructurePlaceHolder)entryResult.getKey()).mergeWithCustomStructure((BO4CustomStructure)entryOutput.getKey());
-							ArrayList<ChunkCoordinate> coords = entryOutput.getValue();
-							coords.addAll(entryResult.getValue());							
-						}
-						else if(entryOutput.getKey() instanceof CustomStructurePlaceHolder)
-						{
-							((CustomStructurePlaceHolder)entryOutput.getKey()).mergeWithCustomStructure((BO4CustomStructure)entryResult.getKey());
-							ArrayList<ChunkCoordinate> coords = entryResult.getValue();
-							coords.addAll(entryOutput.getValue());
-							
-							// Be sure to remove before putting, or only the value gets replaced.
-							output.remove(entryResult.getKey());
-							output.put(entryResult.getKey(), entryResult.getValue());							
-						}
-						break;
-					}
-				}
-			} else {
-				output.put(entryResult.getKey(), entryResult.getValue());
+				output.put(resultKey, entryResult.getValue());
+				outputKeys.put(resultKey, resultKey);
+				continue;
+			}
+
+			if(resultKey instanceof CustomStructurePlaceHolder)
+			{
+				((CustomStructurePlaceHolder)resultKey).mergeWithCustomStructure((BO4CustomStructure)outputKey);
+				output.get(outputKey).addAll(entryResult.getValue());
+			}
+			else if(outputKey instanceof CustomStructurePlaceHolder)
+			{
+				((CustomStructurePlaceHolder)outputKey).mergeWithCustomStructure((BO4CustomStructure)resultKey);
+				ArrayList<ChunkCoordinate> coords = entryResult.getValue();
+				coords.addAll(output.get(outputKey));
+
+				// Be sure to remove before putting, or only the value gets replaced.
+				output.remove(resultKey);
+				output.put(resultKey, coords);
+				outputKeys.put(resultKey, resultKey);
 			}
 		}
 	}

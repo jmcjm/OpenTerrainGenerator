@@ -1,5 +1,14 @@
 ## Minecraft 1.21.1 — Fabric + NeoForge
 
+**2026-07-21 — Fixed: minute-long server freeze when structure data is first loaded**
+
+Entering a dimension with a large accumulated structure library froze the server thread for the better part of a minute — measured at 57.9 s ("Running 57868ms or 1157 ticks behind") on a production server with a 240k-structure Biome Bundle world. Only `max-tick-time` having been raised from its 60 s default kept the watchdog from killing the server outright. Two independent defects, both on the lazy load path from `applyBiomeDecoration` → `getStructureCache()`:
+
+- **`mergeRegionData` was quadratic.** For every structure whose key already existed in the merged output it allocated `new HashSet<>(output.entrySet())` — a full copy of the accumulated map — and scanned it linearly, purely to retrieve the stored key instance that `HashMap` will not hand back. On the sample world that is 1,291 duplicate keys × a ~240k-entry map = **183 million entry copies and roughly 12 GB of garbage per load**, which is where the stall (and the GC thrashing around it) came from. The stored key is now tracked in a parallel canonical-key map, making the lookup O(1). Replaying both algorithms over the real region files produces byte-identical results — same keys, same stored instances, same coordinate lists, same merge calls — in BO3 and BO4 modes alike.
+- **`getStructureCache()` had no synchronization.** Chunk decoration runs on many generator threads at once, so they all saw a null cache and each built their own, loading and parsing every region file in parallel; **six concurrent loads were observed in production**, multiplying both the CPU cost and the resident structure data. Two crashes on the same server show `Loading structure data` with no matching `Loading done`, i.e. the server died mid-load. Now a double-checked lock, so exactly one load happens without serializing the decoration hot path.
+
+Still outstanding: `loadStructureData` reads every region file up front rather than on demand (long-standing TODO in the code), so the one remaining load is still larger than it needs to be.
+
 **2026-07-19 — Fixed: OTG biomes carried no biome tags, so modded ores and mob spawns never applied**
 
 Verified empirically on a production server: the same modset placed `create:zinc_ore` in ~35% of chunks of a vanilla-biome dimension while the OTG overworld had zero — tag-targeted biome modifiers (`#minecraft:is_overworld`, `#c:is_overworld`, …) simply never matched OTG-created biomes, which carried no tags at all beyond `minecraft:has_structure/*`. The `.bc` `BiomeTags` setting only ever fed OTG-internal booleans and the `OTGBiomeTagPath` convention-tag enum sat completely unused, despite the docs claiming mods could identify biomes by these tags.

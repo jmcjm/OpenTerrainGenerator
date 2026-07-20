@@ -83,7 +83,8 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
     protected final NoiseBasedChunkGenerator horribleDelegateForCarvers;
     protected Aquifer.FluidPicker globalFluidPicker = null;
     protected final OTGChunkDecorator chunkDecorator;
-    protected CustomStructureCache structureCache = null;
+    protected volatile CustomStructureCache structureCache = null;
+    private final Object structureCacheLock = new Object();
     protected Long seed = 0L;
     protected ServerLevel serverLevel = null;
     protected final OTGWorldInfo otgWorldInfo;
@@ -270,14 +271,24 @@ public abstract class SharedOTGChunkGenerator extends ChunkGenerator {
     }
 
     public CustomStructureCache getStructureCache(Path worldSaveFolder) {
-        if (this.structureCache == null) {
-            this.structureCache = OTG.getEngine().createCustomStructureCache(
-                    this.preset.getFolderName(),
-                    worldSaveFolder,
-                    this.seed,
-                    CustomStructureType.BO4 == this.preset.getConfig().getResourceSettings().getCustomStructureType());
+        // Decoration runs on many chunk gen threads at once. Without this lock they all see a
+        // null cache and each build their own, loading and parsing every structure data region
+        // file in parallel - six concurrent loads have been observed in production.
+        CustomStructureCache cache = this.structureCache;
+        if (cache == null) {
+            synchronized (this.structureCacheLock) {
+                cache = this.structureCache;
+                if (cache == null) {
+                    cache = OTG.getEngine().createCustomStructureCache(
+                            this.preset.getFolderName(),
+                            worldSaveFolder,
+                            this.seed,
+                            CustomStructureType.BO4 == this.preset.getConfig().getResourceSettings().getCustomStructureType());
+                    this.structureCache = cache;
+                }
+            }
         }
-        return this.structureCache;
+        return cache;
     }
 
     // --- Structure generation ---
